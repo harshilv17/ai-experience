@@ -1,36 +1,106 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AI Experience — Real-Time Generative AI Visual Installation
 
-## Getting Started
+A **production-ready, audience-driven generative AI visual installation** for live conferences. Captures audio from a roaming wireless mic, classifies emotion, and generates abstract art projected in real-time.
 
-First, run the development server:
+## Quick Start
 
 ```bash
+cd ai-experience
+npm install
+cp .env.example .env.local
+# Edit .env.local — add your OPENAI_API_KEY
+mkdir -p /tmp/ai-exp-cache
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## How to Use During Event
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. Open **http://localhost:3000** on the PROJECTION laptop → set to fullscreen (**F11**)
+2. Open **http://localhost:3000/control** on the OPERATOR device (tablet/laptop)
+3. Select the USB wireless mic receiver in the **Mic Picker** dropdown
+4. Click **[TEST API HEALTH]** → wait for all green
+5. Click **[LIVE ON]** → the system starts automatically
+6. Speak into the microphone → first image appears in ~15 seconds
+7. To stop: click **[LIVE OFF]** or close the browser
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Pre-Event Checklist
 
-## Learn More
+- [ ] Laptop plugged into power (2+ hours of operation)
+- [ ] `OPENAI_API_KEY` is set and valid in `.env.local`
+- [ ] USB wireless mic receiver plugged in and selected in Mic Picker
+- [ ] Test API Health — all 3 services show ● OK
+- [ ] Projector connected, resolution set to 1920×1080 or wider
+- [ ] Browser window on projector set to fullscreen (F11)
+- [ ] Control panel open on operator tablet/laptop
+- [ ] Run Test Mode for 5 minutes to seed fallback images
+- [ ] Verify crossfade is smooth (no flashing)
+- [ ] Internet connection stable (hotel/venue WiFi or hotspot)
 
-To learn more about Next.js, take a look at the following resources:
+## Seeding Fallback Images
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+# Start the dev server, enable Test Mode in the control panel,
+# and let it run for 5 minutes. This generates ~15 images that
+# auto-populate the fallback pool.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+# For permanent fallbacks, copy generated images to:
+#   public/fallback/hope/
+#   public/fallback/fear/
+#   public/fallback/grief/
+#   public/fallback/anger/
+#   public/fallback/renewal/
+# (5 images per emotion recommended)
+```
 
-## Deploy on Vercel
+## Environment Variables Reference
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+| Variable | Default | Description |
+|---|---|---|
+| `OPENAI_API_KEY` | — | **Required.** OpenAI API key |
+| `STABILITY_API_KEY` | — | Optional Stability AI key |
+| `IMAGE_PROVIDER` | `dalle3` | `dalle3` or `stability` |
+| `CHUNK_DURATION_MS` | `30000` | Audio chunk duration in ms |
+| `MIN_SPEECH_SECONDS` | `6` | Skip cycle if speech < this (seconds) |
+| `IMAGE_RATE_LIMIT_MS` | `20000` | Minimum ms between image generations |
+| `MAX_API_RETRIES` | `2` | Retries before triggering fallback |
+| `RETRY_BACKOFF_MS` | `2000` | Delay between retries |
+| `CACHE_DIR` | `/tmp/ai-exp-cache` | Where generated images are cached |
+| `FALLBACK_IMAGE_DIR` | `public/fallback` | Pre-seeded fallback image directory |
+| `ENABLE_EMOTION_OVERLAY` | `true` | Show emotion/keyword overlay |
+| `OVERLAY_DURATION_MS` | `3000` | How long overlay is visible |
+| `PROFANITY_FILTER` | `true` | Filter unsafe content |
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Architecture Overview
+
+The system uses a **3-layer architecture**:
+
+1. **Client Layer** (Browser): Audio capture + VAD, fullscreen projection with crossfade, operator control panel. Communicates via HTTP POST (audio upload, commands) and SSE (real-time state updates).
+
+2. **API Layer** (Next.js Routes): Stateless HTTP endpoints that validate input and delegate to the service layer. SSE endpoint keeps connections open for real-time event broadcast.
+
+3. **Service Layer** (Singletons): `ChunkOrchestrator` drives the pipeline. `TranscriptionService`, `EmotionAnalyzer`, `ImageGenerator`, and `FallbackManager` each wrap a specific concern. `SSEBroker` manages all client connections. All singletons use the `globalThis` pattern to survive Next.js hot reloads.
+
+```
+Audio In → VAD → Whisper → GPT-4o → DALL-E 3 → Crossfade → Projector
+                    ↓           ↓           ↓
+                 SSE Broadcast to Control Panel
+```
+
+## Test Mode
+
+Toggle Test Mode in the control panel to cycle through 5 predefined transcripts (one per emotion) without a microphone. Useful for:
+- Seeding the fallback image pool pre-event
+- Verifying the full pipeline end-to-end
+- Testing with different OpenAI API configurations
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Framework | Next.js 14 (App Router) |
+| Language | TypeScript 5.x |
+| Styling | Tailwind CSS 3.x |
+| State | Zustand 4.x |
+| Validation | Zod 3.x |
+| AI | OpenAI SDK 4.x (Whisper, GPT-4o, DALL-E 3) |
+| IDs | uuid 9.x |
