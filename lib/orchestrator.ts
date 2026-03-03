@@ -54,26 +54,14 @@ class ChunkOrchestrator {
   // ─── MAIN ENTRY POINT ──────────────────────────────────────────────────
 
   async processChunk(chunk: AudioChunk): Promise<CycleResult> {
-    // Guard: not live
+    // Guard: not live (includes idle, paused, processing)
     if (this.state !== 'live') {
       this.skippedCycles++;
+      const reason = this.state === 'processing' ? 'busy' : 'not_live';
       return {
         chunkId: chunk.chunkId,
         status: 'skipped',
-        skipReason: 'not_live',
-        totalLatencyMs: 0,
-        apiLatencies: {},
-        timestamp: Date.now(),
-      };
-    }
-
-    // Guard: already processing
-    if (this.state === 'processing') {
-      this.skippedCycles++;
-      return {
-        chunkId: chunk.chunkId,
-        status: 'skipped',
-        skipReason: 'busy',
+        skipReason: reason,
         totalLatencyMs: 0,
         apiLatencies: {},
         timestamp: Date.now(),

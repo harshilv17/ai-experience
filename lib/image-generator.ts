@@ -4,7 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import type { EmotionResult, ImageResult } from '@/types';
 import { buildImagePrompt } from './prompt-templates';
-import type { FallbackManager } from './fallback-manager';
+import { FallbackManager } from './fallback-manager';
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -56,7 +56,7 @@ class ImageGenerator {
           quality: 'standard',
         });
 
-        const remoteUrl = response.data[0]?.url;
+        const remoteUrl = response.data?.[0]?.url;
         if (!remoteUrl) {
           throw new Error('DALL-E 3 returned no URL');
         }

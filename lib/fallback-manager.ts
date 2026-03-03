@@ -5,7 +5,7 @@ import type { EmotionClass } from '@/types';
 
 const EMOTIONS: EmotionClass[] = ['Hope', 'Fear', 'Grief', 'Anger', 'Renewal'];
 
-class FallbackManager {
+export class FallbackManager {
   private pool: Map<EmotionClass, string[]> = new Map();
   private counters: Map<EmotionClass, number> = new Map();
   private fallbackDir: string;
