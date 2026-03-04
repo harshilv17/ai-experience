@@ -43,7 +43,7 @@ export default function ControlPanel() {
   const cycleHistory = useAppStore((s) => s.cycleHistory);
   const [isLoading, setIsLoading] = useState(false);
   const [healthResults, setHealthResults] = useState<Record<string, string> | null>(null);
-  const [sseConnected, setSseConnected] = useState(true);
+  const [sseConnected] = useState(true);
 
   const sendCommand = useCallback(async (cmd: ControlCommand) => {
     setIsLoading(true);
