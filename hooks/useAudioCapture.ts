@@ -5,7 +5,7 @@ import { useEffect, useRef, useCallback, useState } from 'react';
 import { useAppStore } from '@/store/appStore';
 import { v4 as uuidv4 } from 'uuid';
 
-const CHUNK_DURATION_MS = 30000; // 30 seconds default
+const CHUNK_DURATION_MS = 15000; // 15 seconds for faster feedback
 const TEST_EMOTIONS = ['hope', 'fear', 'grief', 'anger', 'renewal'] as const;
 
 export function useAudioCapture() {
@@ -92,76 +92,21 @@ export function useAudioCapture() {
     const emotionName = TEST_EMOTIONS[testIndexRef.current % TEST_EMOTIONS.length];
     testIndexRef.current++;
 
-    // In test mode, we send a test file from public/test-audio/
-    const testUrl = `/test-audio/${emotionName}-sample.webm`;
+    const chunkId = uuidv4();
+
+    // In test mode, send a force_generate command through the control API
+    // This goes through the orchestrator which fires all SSE events properly
+    console.log(`[TestMode] Triggering force_generate for emotion: ${emotionName}`);
     try {
-      const response = await fetch(testUrl);
-      if (!response.ok) {
-        // If test files don't exist, create a minimal audio blob
-        console.warn(`[AudioCapture] Test file not found: ${testUrl}, using empty audio`);
-        const chunkId = uuidv4();
-
-        // Post directly to analyze endpoint with test transcript instead
-        const testTranscripts: Record<string, string> = {
-          hope: 'I feel such hope for the future, like things are finally going to change for the better',
-          fear: "I'm afraid of what's coming next, the uncertainty is overwhelming and I can't shake it",
-          grief: "We've lost so much, and the grief doesn't just go away overnight, it stays with you",
-          anger: 'I am angry that nothing seems to change no matter what we do, it feels pointless',
-          renewal: 'I feel renewed, like this is a new beginning, a fresh start for all of us here today',
-        };
-
-        // Use the analyze + generate pipeline directly for test mode
-        const analyzeRes = await fetch('/api/analyze', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            transcript: testTranscripts[emotionName],
-            chunkId,
-          }),
-        });
-
-        if (analyzeRes.ok) {
-          const emotionResult = await analyzeRes.json();
-          console.log(`[TestMode] Analyzed: ${emotionResult.emotion} (${emotionResult.score})`);
-
-          // Generate image
-          const genRes = await fetch('/api/generate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              emotion: emotionResult.emotion,
-              score: emotionResult.score,
-              keywords: emotionResult.keywords,
-              chunkId,
-            }),
-          });
-
-          if (genRes.ok) {
-            const imageResult = await genRes.json();
-            console.log(`[TestMode] Generated: ${imageResult.servedPath}`);
-          }
-        }
-        return;
-      }
-
-      const blob = await response.blob();
-      const chunkId = uuidv4();
-
-      const formData = new FormData();
-      formData.append('audio', blob);
-      formData.append('chunkId', chunkId);
-      formData.append('durationMs', String(CHUNK_DURATION_MS));
-      formData.append('speechDurationMs', String(15000)); // Assume full speech for test
-      formData.append('mimeType', 'audio/webm;codecs=opus');
-
-      const result = await fetch('/api/audio', {
+      const res = await fetch('/api/control', {
         method: 'POST',
-        body: formData,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cmd: 'force_generate' }),
       });
-      const data = await result.json();
-      console.log(`[TestMode] ${emotionName} result:`, data.status || data.chunkId);
+      const data = await res.json();
+      console.log(`[TestMode] ${emotionName} result:`, data.status, chunkId);
     } catch (err) {
-      console.error('[TestMode] Failed to process test chunk:', err);
+      console.error('[TestMode] Failed to trigger generation:', err);
     }
   }, []);
 
@@ -223,7 +168,7 @@ export function useAudioCapture() {
         const average = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
 
         // Simple VAD: average energy > threshold means speech
-        const SPEECH_THRESHOLD = 30;
+        const SPEECH_THRESHOLD = 15; // Lower threshold for better mic sensitivity
         if (average > SPEECH_THRESHOLD && !isSpeaking) {
           isSpeaking = true;
           speechTimerRef.current = Date.now();

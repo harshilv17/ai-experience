@@ -281,6 +281,20 @@ class ChunkOrchestrator {
 
     console.log(`[Orchestrator] Force generating with emotion: ${emotion.emotion}`);
 
+    // Broadcast chunk_started so the UI enters "listening" phase
+    this.broadcastEvent('chunk_started', { chunkId: emotion.chunkId });
+
+    // Small delay so the user sees the "listening" animation
+    await new Promise(resolve => setTimeout(resolve, 1500));
+
+    // Broadcast emotion_ready so floating keywords appear
+    this.broadcastEvent<EmotionReadyEvent>('emotion_ready', {
+      emotion: emotion.emotion,
+      score: emotion.score,
+      keywords: emotion.keywords,
+      chunkId: emotion.chunkId,
+    });
+
     try {
       const imageResult = await imageGenerator.generate(emotion, fallbackManager);
 
