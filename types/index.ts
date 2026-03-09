@@ -4,11 +4,14 @@ export type EmotionClass = 'Hope' | 'Fear' | 'Grief' | 'Anger' | 'Renewal';
 
 export type OrchestratorState = 'idle' | 'live' | 'paused' | 'processing';
 
+export type PipelinePhase = 'idle' | 'listening' | 'processing' | 'revealing' | 'displaying';
+
 export type CycleStatus = 'complete' | 'skipped' | 'fallback' | 'error';
 
 export type SystemEventType =
   | 'state_change'
   | 'chunk_started'
+  | 'transcript_ready'
   | 'emotion_ready'
   | 'image_ready'
   | 'cycle_complete'
@@ -88,6 +91,12 @@ export interface StateChangeEvent {
   liveMode: boolean;
 }
 
+export interface TranscriptReadyEvent {
+  text: string;
+  words: string[];    // important words extracted for Mentimeter display
+  chunkId: string;
+}
+
 export interface EmotionReadyEvent {
   emotion: EmotionClass;
   score: number;
@@ -134,11 +143,18 @@ export interface AppState {
   orchestratorState: OrchestratorState;
   liveMode: boolean;
 
+  // Pipeline phase (visual state machine for projection display)
+  pipelinePhase: PipelinePhase;
+
   // Current display
   currentImagePath: string | null;
   currentEmotion: EmotionClass | null;
   currentScore: number | null;
   currentKeywords: string[];
+
+  // Floating keywords (Mentimeter-style)
+  floatingKeywords: string[];
+  currentTranscript: string;
 
   // Stats
   stats: CycleStats;
@@ -154,8 +170,10 @@ export interface AppState {
   // Actions
   setOrchestratorState: (state: OrchestratorState) => void;
   setLiveMode: (live: boolean) => void;
+  setPipelinePhase: (phase: PipelinePhase) => void;
   setCurrentImage: (path: string, emotion: EmotionClass, isFallback: boolean) => void;
   setCurrentEmotion: (emotion: EmotionClass, score: number, keywords: string[]) => void;
+  setTranscript: (text: string, words: string[]) => void;
   updateStats: (result: CycleResult) => void;
   setApiStatus: (api: keyof ApiStatusMap, status: ApiStatus) => void;
   setShowOverlay: (show: boolean) => void;

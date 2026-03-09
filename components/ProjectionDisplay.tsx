@@ -1,12 +1,16 @@
-// components/ProjectionDisplay.tsx — Fullscreen dual-layer crossfade image display
+// components/ProjectionDisplay.tsx — Fullscreen 5-phase immersive projection display
 'use client';
 
 import { useEffect, useRef, useCallback } from 'react';
 import { useAppStore } from '@/store/appStore';
+import WaterSpiritCanvas from './WaterSpiritCanvas';
+import FloatingKeywords from './FloatingKeywords';
 import EmotionOverlay from './EmotionOverlay';
 
 export default function ProjectionDisplay() {
   const currentImagePath = useAppStore((s) => s.currentImagePath);
+  const pipelinePhase = useAppStore((s) => s.pipelinePhase);
+  const floatingKeywords = useAppStore((s) => s.floatingKeywords);
 
   // Two image layers for crossfade
   const layerARef = useRef<HTMLImageElement>(null);
@@ -20,26 +24,17 @@ export default function ProjectionDisplay() {
     if (!layerA || !layerB) return;
 
     if (activeLayerRef.current === 'A') {
-      // Layer A is visible, load into B, then crossfade
       layerB.onload = () => {
         layerB.style.opacity = '1';
         layerA.style.opacity = '0';
-
-        // After transition completes, swap references
-        setTimeout(() => {
-          activeLayerRef.current = 'B';
-        }, 850);
+        setTimeout(() => { activeLayerRef.current = 'B'; }, 1200);
       };
       layerB.src = newSrc;
     } else {
-      // Layer B is visible, load into A, then crossfade
       layerA.onload = () => {
         layerA.style.opacity = '1';
         layerB.style.opacity = '0';
-
-        setTimeout(() => {
-          activeLayerRef.current = 'A';
-        }, 850);
+        setTimeout(() => { activeLayerRef.current = 'A'; }, 1200);
       };
       layerA.src = newSrc;
     }
@@ -52,22 +47,34 @@ export default function ProjectionDisplay() {
     }
   }, [currentImagePath, crossfadeTo]);
 
+  // Determine if image layers should be visible
+  const showImage = pipelinePhase === 'revealing' || pipelinePhase === 'displaying';
+
   return (
     <div className="fixed inset-0 bg-black overflow-hidden">
-      {/* Layer A */}
+      {/* ─── WATER SPIRIT ANIMATION LAYER ─────────────────────── */}
+      <WaterSpiritCanvas phase={pipelinePhase} />
+
+      {/* ─── FLOATING KEYWORDS (Mentimeter-style) ─────────────── */}
+      <FloatingKeywords
+        words={floatingKeywords}
+        gathering={pipelinePhase === 'revealing'}
+      />
+
+      {/* ─── IMAGE LAYER A ────────────────────────────────────── */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         ref={layerARef}
         alt=""
         className="fixed inset-0 w-full h-full object-cover"
         style={{
-          opacity: 1,
-          transition: 'opacity 800ms ease-in-out',
-          zIndex: 1,
+          opacity: 0,
+          transition: 'opacity 1200ms ease-in-out',
+          zIndex: showImage ? 6 : 0,
         }}
       />
 
-      {/* Layer B */}
+      {/* ─── IMAGE LAYER B ────────────────────────────────────── */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         ref={layerBRef}
@@ -75,22 +82,32 @@ export default function ProjectionDisplay() {
         className="fixed inset-0 w-full h-full object-cover"
         style={{
           opacity: 0,
-          transition: 'opacity 800ms ease-in-out',
-          zIndex: 2,
+          transition: 'opacity 1200ms ease-in-out',
+          zIndex: showImage ? 7 : 0,
         }}
       />
 
-      {/* Emotion overlay — sits on top of both layers */}
+      {/* ─── REVEAL MIST OVERLAY (during transition) ──────────── */}
+      <div
+        className="fixed inset-0 pointer-events-none transition-opacity duration-2000"
+        style={{
+          zIndex: 9,
+          opacity: pipelinePhase === 'revealing' ? 0.6 : 0,
+          background: 'radial-gradient(ellipse at center, rgba(56, 189, 248, 0.15) 0%, rgba(0, 0, 0, 0.5) 60%, rgba(0, 0, 0, 0.8) 100%)',
+        }}
+      />
+
+      {/* ─── EMOTION OVERLAY ──────────────────────────────────── */}
       <div style={{ zIndex: 10, position: 'relative' }}>
         <EmotionOverlay />
       </div>
 
-      {/* Subtle gradient overlay at edges for projection quality */}
+      {/* ─── EDGE VIGNETTE ────────────────────────────────────── */}
       <div
         className="fixed inset-0 pointer-events-none"
         style={{
-          zIndex: 3,
-          background: 'radial-gradient(ellipse at center, transparent 70%, rgba(0,0,0,0.3) 100%)',
+          zIndex: 11,
+          background: 'radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.4) 100%)',
         }}
       />
     </div>

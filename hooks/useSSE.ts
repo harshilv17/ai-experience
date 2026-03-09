@@ -6,6 +6,7 @@ import { useAppStore } from '@/store/appStore';
 import type {
   SystemEvent,
   StateChangeEvent,
+  TranscriptReadyEvent,
   EmotionReadyEvent,
   ImageReadyEvent,
   CycleCompleteEvent,
@@ -17,6 +18,8 @@ export function useSSE() {
 
   const setOrchestratorState = useAppStore((s) => s.setOrchestratorState);
   const setLiveMode = useAppStore((s) => s.setLiveMode);
+  const setPipelinePhase = useAppStore((s) => s.setPipelinePhase);
+  const setTranscript = useAppStore((s) => s.setTranscript);
   const setCurrentEmotion = useAppStore((s) => s.setCurrentEmotion);
   const setCurrentImage = useAppStore((s) => s.setCurrentImage);
   const updateStats = useAppStore((s) => s.updateStats);
@@ -44,6 +47,17 @@ export function useSSE() {
               setLiveMode(data.liveMode);
               break;
             }
+            case 'chunk_started': {
+              // Audio chunk is being processed → enter listening phase
+              setPipelinePhase('listening');
+              break;
+            }
+            case 'transcript_ready': {
+              // Whisper returned → show floating keywords while GPT-4o works
+              const data = sysEvent.data as TranscriptReadyEvent;
+              setTranscript(data.text, data.words);
+              break;
+            }
             case 'emotion_ready': {
               const data = sysEvent.data as EmotionReadyEvent;
               setCurrentEmotion(data.emotion, data.score, data.keywords);
@@ -61,7 +75,6 @@ export function useSSE() {
               break;
             }
             case 'cycle_skipped': {
-              // Update skip counter through stats
               const skipData = sysEvent.data as { reason: string };
               console.log(`[SSE] Cycle skipped: ${skipData.reason}`);
               break;
@@ -76,6 +89,8 @@ export function useSSE() {
               ) {
                 setApiStatus(errorData.api as 'whisper' | 'gpt4o' | 'dalle3', 'error');
               }
+              // Reset to idle on error so we don't get stuck
+              setPipelinePhase('idle');
               break;
             }
             default:
@@ -88,7 +103,6 @@ export function useSSE() {
 
       eventSource.onerror = () => {
         console.warn('[SSE] Connection error — will auto-reconnect');
-        // EventSource auto-reconnects, but we log it
       };
     }
 

@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import type {
   AppState,
   OrchestratorState,
+  PipelinePhase,
   EmotionClass,
   ApiStatusMap,
   ApiStatus,
@@ -16,11 +17,18 @@ export const useAppStore = create<AppState>((set, get) => ({
   orchestratorState: 'idle',
   liveMode: false,
 
+  // ─── Pipeline phase ──────────────────────────────────────
+  pipelinePhase: 'idle',
+
   // ─── Current display ────────────────────────────────────
   currentImagePath: null,
   currentEmotion: null,
   currentScore: null,
   currentKeywords: [],
+
+  // ─── Floating keywords (Mentimeter) ─────────────────────
+  floatingKeywords: [],
+  currentTranscript: '',
 
   // ─── Stats ──────────────────────────────────────────────
   stats: {
@@ -48,8 +56,18 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   setLiveMode: (live: boolean) => set({ liveMode: live }),
 
+  setPipelinePhase: (phase: PipelinePhase) => set({ pipelinePhase: phase }),
+
   setCurrentImage: (path: string, emotion: EmotionClass, _isFallback: boolean) => {
-    set({ currentImagePath: path, showOverlay: true });
+    set({
+      currentImagePath: path,
+      pipelinePhase: 'revealing',
+      showOverlay: true,
+    });
+    // Transition to displaying after reveal animation
+    setTimeout(() => {
+      set({ pipelinePhase: 'displaying' });
+    }, 2000);
     // Auto-hide overlay after duration
     setTimeout(() => {
       set({ showOverlay: false });
@@ -61,7 +79,17 @@ export const useAppStore = create<AppState>((set, get) => ({
       currentEmotion: emotion,
       currentScore: score,
       currentKeywords: keywords,
+      floatingKeywords: keywords,
+      pipelinePhase: 'processing',
       showOverlay: true,
+    });
+  },
+
+  setTranscript: (text: string, words: string[]) => {
+    set({
+      currentTranscript: text,
+      floatingKeywords: words,
+      pipelinePhase: 'processing',
     });
   },
 
@@ -110,6 +138,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   addCycleToHistory: (result: CycleResult) => {
     set((state) => ({
       cycleHistory: [result, ...state.cycleHistory].slice(0, 50), // keep last 50
+      // Reset to idle after cycle completes (with delay for display phase)
     }));
+    // Return to idle phase after showing the image for a while
+    setTimeout(() => {
+      set({ pipelinePhase: 'idle', floatingKeywords: [], currentTranscript: '' });
+    }, 8000);
   },
 }));

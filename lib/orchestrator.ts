@@ -85,6 +85,22 @@ class ChunkOrchestrator {
       this.apiStatus.whisper = 'ok';
       apiLatencies.whisper = transcript.latencyMs;
       console.log(`[Orchestrator] Transcript: "${transcript.text.slice(0, 100)}..." (${transcript.latencyMs}ms)`);
+
+      // Broadcast transcript immediately so client can show floating keywords
+      // while GPT-4o + DALL-E are still working (reduces perceived latency)
+      const stopWords = new Set(['the','a','an','is','are','was','were','in','on','at','to','for','of','and','or','but','it','i','we','he','she','they','you','my','our','this','that','with','from','by','as','be','has','have','had','do','does','did','will','would','could','should','can','may','might','not','no','so','if','then','than','just','also','very','really','about','like','some','all','any','each','every','been','being','its','their','there','here','what','when','where','which','who','how','more','most','other','into','over','after','before','between','through','during','up','down','out','off','only','own','same','too','much','many','such','well','back','still','even','get','got','make','made','take','took','come','came','go','went','say','said','know','knew','think','thought','see','saw','want','us','me']);
+      const words = transcript.text
+        .split(/\s+/)
+        .map(w => w.replace(/[^a-zA-Z]/g, '').toLowerCase())
+        .filter(w => w.length > 2 && !stopWords.has(w))
+        .filter((w, i, arr) => arr.indexOf(w) === i)
+        .slice(0, 12);
+
+      this.broadcastEvent('transcript_ready', {
+        text: transcript.text,
+        words,
+        chunkId: chunk.chunkId,
+      });
     } catch (error: unknown) {
       this.apiStatus.whisper = 'error';
       const message = error instanceof Error ? error.message : String(error);
