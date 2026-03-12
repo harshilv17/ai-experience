@@ -5,11 +5,11 @@ import { useAppStore } from '@/store/appStore';
 import { useMemo, useEffect, useState } from 'react';
 
 const EMOTION_COLORS: Record<string, string> = {
-  Hope: 'rgba(251, 191, 36, 1)',    // amber
-  Fear: 'rgba(71, 85, 105, 1)',     // slate
-  Grief: 'rgba(120, 113, 108, 1)',  // stone
-  Anger: 'rgba(220, 38, 38, 1)',    // red
-  Renewal: 'rgba(16, 185, 129, 1)', // emerald
+  Hope: 'rgba(253, 224, 71, 1)',    // Yellow/Gold
+  Fear: 'rgba(129, 140, 248, 1)',   // Indigo/Violet
+  Grief: 'rgba(56, 189, 248, 1)',   // Sky/Deep Water
+  Anger: 'rgba(251, 113, 133, 1)',  // Rose/Crimson
+  Renewal: 'rgba(52, 211, 153, 1)', // Emerald/Spring
 };
 
 export default function ResonanceMeter() {

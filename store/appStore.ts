@@ -149,10 +149,16 @@ export const useAppStore = create<AppState>((set, get) => ({
     set((state) => ({
       cycleHistory: [result, ...state.cycleHistory].slice(0, 50), // keep last 50
     }));
-    // Return to idle phase after showing the image for a while
+    // Switch to displaying phase to conceal the robot and keep the image fully visible.
+    // The pipeline will naturally move to 'listening' when the next cycle chunk begins.
     setTimeout(() => {
-      set({ pipelinePhase: 'idle', floatingKeywords: [], currentTranscript: '' });
-    }, 8000);
+      set((state) => {
+        if (state.pipelinePhase === 'revealing') {
+          return { pipelinePhase: 'displaying', floatingKeywords: [], currentTranscript: '' };
+        }
+        return state;
+      });
+    }, 2500);
   },
 
   // ─── V2 Actions ─────────────────────────────────────────

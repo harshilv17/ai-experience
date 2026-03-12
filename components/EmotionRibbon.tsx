@@ -2,14 +2,13 @@
 'use client';
 
 import { useAppStore } from '@/store/appStore';
-import type { EmotionClass } from '@/types';
 
-const EMOTION_COLORS: Record<EmotionClass, string> = {
-  Hope: 'rgba(251, 191, 36, 0.6)',    // amber-500
-  Fear: 'rgba(71, 85, 105, 0.6)',     // slate-600
-  Grief: 'rgba(120, 113, 108, 0.6)',  // stone-600
-  Anger: 'rgba(220, 38, 38, 0.6)',    // red-600
-  Renewal: 'rgba(16, 185, 129, 0.6)', // emerald-500
+const EMOTION_COLORS: Record<string, string> = {
+  Hope: 'rgba(253, 224, 71, 0.8)',
+  Fear: 'rgba(129, 140, 248, 0.8)',
+  Grief: 'rgba(56, 189, 248, 0.8)',
+  Anger: 'rgba(251, 113, 133, 0.8)',
+  Renewal: 'rgba(52, 211, 153, 0.8)',
 };
 
 export default function EmotionRibbon() {

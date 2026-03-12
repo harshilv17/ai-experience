@@ -8,11 +8,11 @@ import type { EmotionClass } from '@/types';
 const OVERLAY_DURATION_MS = 5000;
 
 const EMOTION_THEMES: Record<EmotionClass, { accent: string; glow: string; label: string }> = {
-  Hope:    { accent: 'rgba(251, 191, 36, 0.8)',  glow: 'rgba(251, 191, 36, 0.3)',   label: '☀ Hope' },
-  Fear:    { accent: 'rgba(148, 163, 184, 0.8)', glow: 'rgba(148, 163, 184, 0.3)',  label: '🌑 Fear' },
-  Grief:   { accent: 'rgba(168, 162, 158, 0.8)', glow: 'rgba(168, 162, 158, 0.3)',  label: '🌧 Grief' },
-  Anger:   { accent: 'rgba(239, 68, 68, 0.8)',   glow: 'rgba(239, 68, 68, 0.3)',    label: '⚡ Anger' },
-  Renewal: { accent: 'rgba(52, 211, 153, 0.8)',  glow: 'rgba(52, 211, 153, 0.3)',   label: '🌱 Renewal' },
+  Hope:    { accent: 'rgba(253, 224, 71, 0.9)',  glow: 'rgba(253, 224, 71, 0.3)',   label: '☀ Hope' },
+  Fear:    { accent: 'rgba(129, 140, 248, 0.9)', glow: 'rgba(129, 140, 248, 0.3)',  label: '🌑 Fear' },
+  Grief:   { accent: 'rgba(56, 189, 248, 0.9)',  glow: 'rgba(56, 189, 248, 0.3)',   label: '🌧 Grief' },
+  Anger:   { accent: 'rgba(251, 113, 133, 0.9)', glow: 'rgba(251, 113, 133, 0.3)',  label: '⚡ Anger' },
+  Renewal: { accent: 'rgba(52, 211, 153, 0.9)',  glow: 'rgba(52, 211, 153, 0.3)',   label: '🌱 Renewal' },
 };
 
 export default function EmotionOverlay() {

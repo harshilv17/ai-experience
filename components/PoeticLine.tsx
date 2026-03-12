@@ -3,14 +3,13 @@
 
 import { useAppStore } from '@/store/appStore';
 import { useEffect, useState } from 'react';
-import type { EmotionClass } from '@/types';
 
-const GLOW_COLORS: Record<EmotionClass, string> = {
-  Hope: 'rgba(251, 191, 36, 0.4)',
-  Fear: 'rgba(71, 85, 105, 0.4)',
-  Grief: 'rgba(120, 113, 108, 0.4)',
-  Anger: 'rgba(220, 38, 38, 0.4)',
-  Renewal: 'rgba(16, 185, 129, 0.4)',
+const EMOTION_COLORS: Record<string, string> = {
+  Hope: 'rgba(253, 224, 71, 0.6)',
+  Fear: 'rgba(129, 140, 248, 0.6)',
+  Grief: 'rgba(56, 189, 248, 0.6)',
+  Anger: 'rgba(251, 113, 133, 0.6)',
+  Renewal: 'rgba(52, 211, 153, 0.6)',
 };
 
 export default function PoeticLine() {
@@ -39,7 +38,7 @@ export default function PoeticLine() {
 
   if (!displayText && !visible) return null;
 
-  const glowColor = GLOW_COLORS[lastEmotion];
+  const glowColor = EMOTION_COLORS[lastEmotion];
 
   return (
     <div

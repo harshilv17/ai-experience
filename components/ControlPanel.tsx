@@ -4,14 +4,14 @@
 import { useState, useCallback } from 'react';
 import { useAppStore } from '@/store/appStore';
 import MicPicker from './MicPicker';
-import type { ControlCommand, EmotionClass } from '@/types';
+import type { ControlCommand } from '@/types';
 
-const EMOTION_BADGE_COLORS: Record<EmotionClass, string> = {
-  Hope: 'bg-amber-500',
-  Fear: 'bg-slate-600',
-  Grief: 'bg-stone-600',
-  Anger: 'bg-red-600',
-  Renewal: 'bg-emerald-600',
+const EMOTION_BADGE_COLORS: Record<string, string> = {
+  Hope: 'bg-[#FDE047] shadow-[#FDE047]/60 text-black',
+  Fear: 'bg-[#818CF8] shadow-[#818CF8]/60 text-white',
+  Grief: 'bg-[#38BDF8] shadow-[#38BDF8]/60 text-black',
+  Anger: 'bg-[#FB7185] shadow-[#FB7185]/60 text-white',
+  Renewal: 'bg-[#34D399] shadow-[#34D399]/60 text-black',
 };
 
 const STATUS_COLORS: Record<string, string> = {
