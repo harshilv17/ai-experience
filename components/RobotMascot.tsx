@@ -100,35 +100,6 @@ export default function RobotMascot({ phase, consecutiveSameEmotion }: Props) {
               <stop offset="100%" stopColor="#0B0B14" />
             </linearGradient>
 
-            {/* Himalayan Patterns */}
-            <pattern id="cap-pat" width="40" height="40" patternUnits="userSpaceOnUse">
-              <rect width="40" height="40" fill="#2C3E50"/>
-              <polygon points="20,5 35,20 20,35 5,20" fill="#C0392B"/>
-              <polygon points="20,10 30,20 20,30 10,20" fill="#F39C12"/>
-              <circle cx="5" cy="5" r="2" fill="#3498DB"/>
-              <circle cx="35" cy="5" r="2" fill="#3498DB"/>
-              <circle cx="5" cy="35" r="2" fill="#3498DB"/>
-              <circle cx="35" cy="35" r="2" fill="#3498DB"/>
-            </pattern>
-
-            <pattern id="scarf-pat" width="60" height="60" patternUnits="userSpaceOnUse" patternTransform="rotate(15)">
-              <rect width="60" height="60" fill="#2980B9"/>
-              <path d="M0,15 L30,45 L60,15" stroke="#27AE60" strokeWidth="8" fill="none"/>
-              <path d="M0,35 L30,65 L60,35" stroke="#C0392B" strokeWidth="8" fill="none"/>
-              <circle cx="30" cy="15" r="5" fill="#F1C40F"/>
-              <circle cx="30" cy="55" r="5" fill="#F1C40F"/>
-              <circle cx="15" cy="30" r="3" fill="#FFF"/>
-              <circle cx="45" cy="30" r="3" fill="#FFF"/>
-            </pattern>
-
-            <pattern id="vest-pat" width="80" height="80" patternUnits="userSpaceOnUse">
-              <rect width="80" height="80" fill="#8B0000"/>
-              <rect x="10" y="10" width="60" height="60" fill="none" stroke="#F39C12" strokeWidth="3"/>
-              <rect x="15" y="15" width="50" height="50" fill="none" stroke="#2980B9" strokeWidth="3"/>
-              <path d="M25,30 h30 v20 h-30 Z" fill="none" stroke="#F1C40F" strokeWidth="4"/>
-              <path d="M40,20 v40" stroke="#F1C40F" strokeWidth="4"/>
-            </pattern>
-
             <filter id="shadow-lg">
               <feDropShadow dx="0" dy="8" stdDeviation="12" floodColor="#000" floodOpacity="0.4" />
             </filter>
@@ -145,53 +116,25 @@ export default function RobotMascot({ phase, consecutiveSameEmotion }: Props) {
           </defs>
 
           {/* Base / Pedestal */}
-          <path d="M 120 440 L 280 440 L 320 480 L 80 480 Z" fill="#D4D4D8" filter="url(#shadow-lg)"/>
-          <rect x="160" y="400" width="80" height="50" fill="#A1A1AA" />
+          <path d="M 140 420 L 260 420 L 300 480 L 100 480 Z" fill="#D4D4D8" filter="url(#shadow-lg)"/>
+          <rect x="170" y="380" width="60" height="60" fill="#A1A1AA" />
 
           {/* Arms */}
-          <rect x="40" y="180" width="60" height="150" rx="30" fill="url(#cream-head)" filter="url(#shadow-lg)" />
-          <rect x="300" y="180" width="60" height="150" rx="30" fill="url(#cream-head)" filter="url(#shadow-lg)" />
+          <rect x="40" y="200" width="60" height="130" rx="30" fill="url(#cream-head)" filter="url(#shadow-lg)" />
+          <rect x="300" y="200" width="60" height="130" rx="30" fill="url(#cream-head)" filter="url(#shadow-lg)" />
 
           {/* Body */}
-          <rect x="70" y="150" width="260" height="260" rx="110" fill="url(#cream-head)" filter="url(#shadow-lg)" />
+          <rect x="70" y="150" width="260" height="240" rx="90" fill="url(#cream-head)" filter="url(#shadow-lg)" />
 
-          {/* Vest */}
-          <path d="M 70 170 A 100 100 0 0 1 330 170 L 330 380 A 100 100 0 0 1 70 380 Z" fill="url(#vest-pat)" />
-          {/* Vest Center Opening */}
-          <rect x="160" y="150" width="80" height="260" fill="url(#cream-head)" filter="url(#shadow-sm)" />
-          <line x1="160" y1="150" x2="160" y2="400" stroke="#F39C12" strokeWidth="5" />
-          <line x1="240" y1="150" x2="240" y2="400" stroke="#F39C12" strokeWidth="5" />
-
-          {/* Gold Buttons */}
-          <circle cx="200" cy="240" r="8" fill="#F1C40F" filter="url(#shadow-sm)" />
-          <circle cx="200" cy="240" r="3" fill="#D35400" />
-          <circle cx="200" cy="290" r="8" fill="#F1C40F" filter="url(#shadow-sm)" />
-          <circle cx="200" cy="290" r="3" fill="#D35400" />
-          <circle cx="200" cy="340" r="8" fill="#F1C40F" filter="url(#shadow-sm)" />
-          <circle cx="200" cy="340" r="3" fill="#D35400" />
-
-          {/* Scarf Back Loop */}
-          <path d="M 60 170 C 130 240, 270 240, 340 170 C 270 270, 130 270, 60 170" fill="url(#scarf-pat)" filter="url(#shadow-lg)"/>
+          {/* Minimal Body Detail */}
+          <line x1="120" y1="280" x2="280" y2="280" stroke="#E5E5E5" strokeWidth="3" strokeLinecap="round" />
+          <circle cx="200" cy="240" r="12" fill="#E4E4E7" filter="url(#shadow-sm)" />
+          <circle cx="200" cy="240" r="4" fill="#38BDF8" opacity="0.5" />
+          <circle cx="200" cy="310" r="12" fill="#E4E4E7" filter="url(#shadow-sm)" />
+          <circle cx="200" cy="310" r="4" fill="#38BDF8" opacity="0.5" />
 
           {/* Head Base */}
           <rect x="90" y="40" width="220" height="160" rx="60" fill="url(#cream-head)" filter="url(#shadow-lg)" />
-
-          {/* Front Scarf Wrap */}
-          <path d="M 60 160 Q 200 220 340 160 Q 200 180 60 160" fill="url(#scarf-pat)" filter="url(#shadow-lg)" />
-          {/* Scarf Dangling Ends */}
-          <rect x="100" y="180" width="45" height="130" fill="url(#scarf-pat)" filter="url(#shadow-sm)" />
-          <rect x="255" y="170" width="45" height="120" fill="url(#scarf-pat)" filter="url(#shadow-sm)" />
-          {/* Fringes Blue Base */}
-          <rect x="100" y="310" width="45" height="20" fill="#1A5276" />
-          <rect x="255" y="290" width="45" height="20" fill="#1A5276" />
-          {/* Fringe Cuts Left */}
-          {Array.from({length: 8}).map((_, i) => (
-             <line key={`fl-${i}`} x1={105 + i * 5} y1={310} x2={105 + i * 5} y2={330} stroke="#000" strokeWidth="1.5" opacity="0.4" />
-          ))}
-          {/* Fringe Cuts Right */}
-          {Array.from({length: 8}).map((_, i) => (
-             <line key={`fr-${i}`} x1={260 + i * 5} y1={290} x2={260 + i * 5} y2={310} stroke="#000" strokeWidth="1.5" opacity="0.4" />
-          ))}
 
           {/* Face Screen */}
           <rect x="110" y="65" width="180" height="110" rx="35" fill="url(#screen-grad)" />
@@ -230,11 +173,14 @@ export default function RobotMascot({ phase, consecutiveSameEmotion }: Props) {
 
           {/* Cap (Himalayan Topi) */}
           <g transform="translate(100, -10)" className={isEscalated3 ? 'animate-wobble' : ''} style={{ transformOrigin: '100px 40px' }}>
-            {/* Cap Band */}
-            <path d="M 0 55 L 200 55 L 180 5 L 20 5 Z" fill="url(#cap-pat)" filter="url(#shadow-sm)" />
-            {/* Orange Triangular Peak/Flap */}
-            <polygon points="50,5 150,5 120,-30 80,-30" fill="#F39C12" />
-            <polygon points="60,5 140,5 110,-25 90,-25" fill="#E67E22" />
+            {/* Cap Band - Duller red/brown base */}
+            <path d="M 0 55 L 200 55 L 180 5 L 20 5 Z" fill="#8B5A2B" filter="url(#shadow-sm)" />
+            {/* Front Band Detail */}
+            <path d="M 10 45 L 190 45 L 175 15 L 25 15 Z" fill="#6B4226" />
+            
+            {/* Topi Signature Peak/Flap - Duller orange/mustard */}
+            <polygon points="50,5 150,5 120,-30 80,-30" fill="#C5832B" />
+            <polygon points="60,5 140,5 110,-25 90,-25" fill="#A46B22" />
           </g>
         </svg>
       </div>
