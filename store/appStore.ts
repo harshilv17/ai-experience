@@ -8,6 +8,7 @@ import type {
   ApiStatusMap,
   ApiStatus,
   CycleResult,
+  EmotionHistoryEntry,
 } from '@/types';
 
 const OVERLAY_DURATION_MS = parseInt(process.env.NEXT_PUBLIC_OVERLAY_DURATION_MS || '3000', 10);
@@ -50,6 +51,15 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   // ─── History ────────────────────────────────────────────
   cycleHistory: [],
+
+  // ─── V2 State ──────────────────────────────────────────
+  liveTranscript: '',
+  liveImagePrompt: '',
+  emotionHistory: [],
+  sessionKeywords: [],
+  consecutiveSameEmotion: 0,
+  poeticLine: null,
+  liveEmotionJSON: null,
 
   // ─── Actions ────────────────────────────────────────────
   setOrchestratorState: (state: OrchestratorState) => set({ orchestratorState: state }),
@@ -138,11 +148,54 @@ export const useAppStore = create<AppState>((set, get) => ({
   addCycleToHistory: (result: CycleResult) => {
     set((state) => ({
       cycleHistory: [result, ...state.cycleHistory].slice(0, 50), // keep last 50
-      // Reset to idle after cycle completes (with delay for display phase)
     }));
     // Return to idle phase after showing the image for a while
     setTimeout(() => {
       set({ pipelinePhase: 'idle', floatingKeywords: [], currentTranscript: '' });
     }, 8000);
   },
+
+  // ─── V2 Actions ─────────────────────────────────────────
+  setLiveTranscript: (t: string) => set({ liveTranscript: t }),
+
+  setLiveImagePrompt: (p: string) => set({ liveImagePrompt: p }),
+
+  addEmotionHistory: (emotion: EmotionClass, score: number) => {
+    set((state) => {
+      const entry: EmotionHistoryEntry = { emotion, score, timestamp: Date.now() };
+      const newHistory = [...state.emotionHistory, entry].slice(-8); // keep last 8
+
+      // Track consecutive same emotion
+      let consecutive = 0;
+      if (newHistory.length >= 2) {
+        const lastEmotion = newHistory[newHistory.length - 1].emotion;
+        for (let i = newHistory.length - 2; i >= 0; i--) {
+          if (newHistory[i].emotion === lastEmotion) {
+            consecutive++;
+          } else {
+            break;
+          }
+        }
+      }
+
+      return {
+        emotionHistory: newHistory,
+        consecutiveSameEmotion: consecutive,
+      };
+    });
+  },
+
+  addSessionKeywords: (words: string[]) => {
+    set((state) => {
+      const existing = new Set(state.sessionKeywords);
+      for (const w of words) {
+        existing.add(w.toLowerCase());
+      }
+      return { sessionKeywords: Array.from(existing) };
+    });
+  },
+
+  setPoeticLine: (line: string | null) => set({ poeticLine: line }),
+
+  setLiveEmotionJSON: (json: string | null) => set({ liveEmotionJSON: json }),
 }));

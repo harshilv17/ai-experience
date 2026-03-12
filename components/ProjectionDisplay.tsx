@@ -3,14 +3,19 @@
 
 import { useEffect, useRef, useCallback } from 'react';
 import { useAppStore } from '@/store/appStore';
-import WaterSpiritCanvas from './WaterSpiritCanvas';
+import RobotMascot from './RobotMascot';
 import FloatingKeywords from './FloatingKeywords';
 import EmotionOverlay from './EmotionOverlay';
+import ResonanceMeter from './ResonanceMeter';
+import EmotionRibbon from './EmotionRibbon';
+import PoeticLine from './PoeticLine';
+import AIThinkingTicker from './AIThinkingTicker';
 
 export default function ProjectionDisplay() {
   const currentImagePath = useAppStore((s) => s.currentImagePath);
   const pipelinePhase = useAppStore((s) => s.pipelinePhase);
   const floatingKeywords = useAppStore((s) => s.floatingKeywords);
+  const consecutiveSameEmotion = useAppStore((s) => s.consecutiveSameEmotion);
 
   // Two image layers for crossfade
   const layerARef = useRef<HTMLImageElement>(null);
@@ -18,23 +23,27 @@ export default function ProjectionDisplay() {
   const activeLayerRef = useRef<'A' | 'B'>('A');
   const prevImageRef = useRef<string | null>(null);
 
-  const crossfadeTo = useCallback((newSrc: string) => {
+  const crossfadeTo = useCallback((newSrc: string, durationMs: number = 1200) => {
     const layerA = layerARef.current;
     const layerB = layerBRef.current;
     if (!layerA || !layerB) return;
 
     if (activeLayerRef.current === 'A') {
       layerB.onload = () => {
+        layerB.style.transition = `opacity ${durationMs}ms ease-in-out`;
+        layerA.style.transition = `opacity ${durationMs}ms ease-in-out`;
         layerB.style.opacity = '1';
         layerA.style.opacity = '0';
-        setTimeout(() => { activeLayerRef.current = 'B'; }, 1200);
+        setTimeout(() => { activeLayerRef.current = 'B'; }, durationMs);
       };
       layerB.src = newSrc;
     } else {
       layerA.onload = () => {
+        layerA.style.transition = `opacity ${durationMs}ms ease-in-out`;
+        layerB.style.transition = `opacity ${durationMs}ms ease-in-out`;
         layerA.style.opacity = '1';
         layerB.style.opacity = '0';
-        setTimeout(() => { activeLayerRef.current = 'A'; }, 1200);
+        setTimeout(() => { activeLayerRef.current = 'A'; }, durationMs);
       };
       layerA.src = newSrc;
     }
@@ -43,22 +52,29 @@ export default function ProjectionDisplay() {
   useEffect(() => {
     if (currentImagePath && currentImagePath !== prevImageRef.current) {
       prevImageRef.current = currentImagePath;
-      crossfadeTo(currentImagePath);
+      // V2 Escalation: Slow transition from 1200ms to 2500ms
+      const duration = consecutiveSameEmotion >= 3 ? 2500 : 1200;
+      crossfadeTo(currentImagePath, duration);
     }
-  }, [currentImagePath, crossfadeTo]);
+  }, [currentImagePath, crossfadeTo, consecutiveSameEmotion]);
 
   // Determine if image layers should be visible
   const showImage = pipelinePhase === 'revealing' || pipelinePhase === 'displaying';
 
   return (
     <div className="fixed inset-0 bg-black overflow-hidden">
-      {/* ─── WATER SPIRIT ANIMATION LAYER ─────────────────────── */}
-      <WaterSpiritCanvas phase={pipelinePhase} />
+      {/* ─── V2: ROBOT MASCOT & NEW COMPONENTS ────────────────── */}
+      <RobotMascot phase={pipelinePhase} consecutiveSameEmotion={consecutiveSameEmotion} />
+      <ResonanceMeter />
+      <EmotionRibbon />
+      <PoeticLine />
+      <AIThinkingTicker />
 
       {/* ─── FLOATING KEYWORDS (Mentimeter-style) ─────────────── */}
       <FloatingKeywords
         words={floatingKeywords}
         gathering={pipelinePhase === 'revealing'}
+        phase={pipelinePhase}
       />
 
       {/* ─── IMAGE LAYER A ────────────────────────────────────── */}
@@ -92,7 +108,8 @@ export default function ProjectionDisplay() {
         className="fixed inset-0 pointer-events-none transition-opacity duration-2000"
         style={{
           zIndex: 9,
-          opacity: pipelinePhase === 'revealing' ? 0.6 : 0,
+          // V2 Escalation: Mist opacity increases to 0.85 if escalated
+          opacity: pipelinePhase === 'revealing' ? (consecutiveSameEmotion >= 3 ? 0.85 : 0.6) : 0,
           background: 'radial-gradient(ellipse at center, rgba(56, 189, 248, 0.15) 0%, rgba(0, 0, 0, 0.5) 60%, rgba(0, 0, 0, 0.8) 100%)',
         }}
       />

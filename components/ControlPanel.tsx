@@ -41,9 +41,24 @@ export default function ControlPanel() {
   const currentImagePath = useAppStore((s) => s.currentImagePath);
   const stats = useAppStore((s) => s.stats);
   const cycleHistory = useAppStore((s) => s.cycleHistory);
+
+  // V2 store additions
+  const liveTranscript = useAppStore((s) => s.liveTranscript);
+  const liveImagePrompt = useAppStore((s) => s.liveImagePrompt);
+  const emotionHistory = useAppStore((s) => s.emotionHistory);
+
   const [isLoading, setIsLoading] = useState(false);
   const [healthResults, setHealthResults] = useState<Record<string, string> | null>(null);
   const [sseConnected] = useState(true);
+  const [copiedPrompt, setCopiedPrompt] = useState(false);
+
+  const copyPrompt = useCallback(() => {
+    if (liveImagePrompt) {
+      navigator.clipboard.writeText(liveImagePrompt);
+      setCopiedPrompt(true);
+      setTimeout(() => setCopiedPrompt(false), 2000);
+    }
+  }, [liveImagePrompt]);
 
   const sendCommand = useCallback(async (cmd: ControlCommand) => {
     setIsLoading(true);
@@ -249,6 +264,90 @@ export default function ControlPanel() {
             />
           </div>
         )}
+      </div>
+
+      {/* ─── V2: LIVE TRANSCRIPT, PROMPT, & EMOTION TIMELINE ───────── */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* CARD A — Live Transcript */}
+        <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 transition-colors duration-300">
+          <div className="flex items-center gap-2 mb-3">
+            <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">
+              Latest Transcript
+            </h2>
+            <div className={`w-2 h-2 rounded-full bg-emerald-400 animate-pulse ${liveTranscript ? 'opacity-100' : 'opacity-0'}`} />
+          </div>
+          <div className="bg-black/50 rounded-lg p-3 h-32 overflow-y-auto border border-sky-900/30">
+            {liveTranscript ? (
+              <p className="text-gray-400 italic font-mono text-xs leading-relaxed">
+                &quot;{liveTranscript}&quot;
+              </p>
+            ) : (
+              <p className="text-gray-600 italic text-xs">Waiting for speech...</p>
+            )}
+          </div>
+        </div>
+
+        {/* CARD B — DALL-E 3 Prompt */}
+        <div className="bg-gray-900 rounded-xl p-4 border border-indigo-900/50">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-semibold text-indigo-400 uppercase tracking-wider">
+              Last Image Prompt
+            </h2>
+            <button
+              onClick={copyPrompt}
+              disabled={!liveImagePrompt}
+              className="text-xs bg-indigo-900/50 hover:bg-indigo-800 text-indigo-200 px-2 py-1 rounded transition-colors disabled:opacity-30"
+            >
+              {copiedPrompt ? '✓ Copied' : 'Copy'}
+            </button>
+          </div>
+          <div className="bg-black/50 rounded-lg p-3 h-32 overflow-y-auto border border-indigo-900/30">
+            {liveImagePrompt ? (
+              <p className="text-indigo-200/70 font-mono text-xs leading-relaxed">
+                {liveImagePrompt}
+              </p>
+            ) : (
+              <p className="text-indigo-900/50 italic text-xs">Waiting for prompt generation...</p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* CARD C — Emotion Timeline */}
+      <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 overflow-hidden">
+        <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">
+          Emotion Arc
+        </h2>
+        <div className="flex items-center gap-3 overflow-x-auto pb-2 h-12">
+          {emotionHistory.length === 0 ? (
+            <p className="text-gray-600 italic text-xs">No emotion data yet...</p>
+          ) : (
+            emotionHistory.map((entry, idx) => (
+              <div
+                key={entry.timestamp}
+                className="flex items-center animate-slide-in"
+                title={`${entry.emotion} (${entry.score}/100)`}
+              >
+                <div
+                  className={`w-7 h-7 rounded-full shadow-lg ${EMOTION_BADGE_COLORS[entry.emotion]}`}
+                  style={{ opacity: 0.3 + (idx / emotionHistory.length) * 0.7 }}
+                />
+                {idx < emotionHistory.length - 1 && (
+                  <div className="w-4 h-0.5 bg-gray-800 mx-1" />
+                )}
+              </div>
+            ))
+          )}
+        </div>
+        <style jsx>{`
+          .animate-slide-in {
+            animation: slideInRight 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+          }
+          @keyframes slideInRight {
+            0% { transform: translateX(20px); opacity: 0; }
+            100% { transform: translateX(0); opacity: 1; }
+          }
+        `}</style>
       </div>
 
       {/* ─── CYCLE STATS ───────────────────────────────────────────── */}

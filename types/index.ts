@@ -14,6 +14,8 @@ export type SystemEventType =
   | 'transcript_ready'
   | 'emotion_ready'
   | 'image_ready'
+  | 'prompt_ready'
+  | 'poetic_moment'
   | 'cycle_complete'
   | 'cycle_skipped'
   | 'api_error'
@@ -116,6 +118,16 @@ export interface CycleCompleteEvent {
   stats: CycleStats;
 }
 
+export interface PromptReadyEvent {
+  prompt: string;
+  chunkId: string;
+}
+
+export interface PoeticMomentEvent {
+  text: string;
+  emotion: EmotionClass;
+}
+
 // ─── UI STATE ──────────────────────────────────────────────────────────────
 
 export interface CycleStats {
@@ -137,6 +149,12 @@ export type ApiStatusMap = {
 };
 
 export type ApiStatus = 'ok' | 'error' | 'rate_limited' | 'unknown';
+
+export interface EmotionHistoryEntry {
+  emotion: EmotionClass;
+  score: number;
+  timestamp: number;
+}
 
 export interface AppState {
   // Orchestrator
@@ -167,6 +185,15 @@ export interface AppState {
   // History
   cycleHistory: CycleResult[];
 
+  // ─── V2 ADDITIONS ─────────────────────────────────────────
+  liveTranscript: string;
+  liveImagePrompt: string;
+  emotionHistory: EmotionHistoryEntry[];
+  sessionKeywords: string[];
+  consecutiveSameEmotion: number;
+  poeticLine: string | null;
+  liveEmotionJSON: string | null;
+
   // Actions
   setOrchestratorState: (state: OrchestratorState) => void;
   setLiveMode: (live: boolean) => void;
@@ -180,4 +207,12 @@ export interface AppState {
   setTestMode: (test: boolean) => void;
   setSelectedMic: (deviceId: string) => void;
   addCycleToHistory: (result: CycleResult) => void;
+
+  // V2 Actions
+  setLiveTranscript: (t: string) => void;
+  setLiveImagePrompt: (p: string) => void;
+  addEmotionHistory: (emotion: EmotionClass, score: number) => void;
+  addSessionKeywords: (words: string[]) => void;
+  setPoeticLine: (line: string | null) => void;
+  setLiveEmotionJSON: (json: string | null) => void;
 }

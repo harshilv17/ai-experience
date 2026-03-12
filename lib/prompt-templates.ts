@@ -62,3 +62,6 @@ export function buildImagePrompt(result: EmotionResult): string {
 
   return `${styleBase}. Visual themes woven into the scene: ${keywords}. Emotional intensity: ${result.score}/100 — reflect this in the drama of the water and light. Style: mythological fantasy art, cinematic composition, 4K ultra-detailed. STRICT RULES: No text, no letters, no human faces, no logos, no UI elements, no words.`;
 }
+
+// ─── IMAGE GENERATION SYSTEM CONTEXT ──────────────────────────────────────
+export const IMAGE_SYSTEM_CONTEXT = `You are generating visuals for a live installation at a technology conference. The subject is the Himalayan water ecosystem — glaciers, sacred rivers, mountain spirits, and the human emotional relationship with water. The audience are researchers, academics, and conservationists. The art style must remain consistent across all generations: mystical, cinematic, no text, no faces, no UI. Every image should feel like a frame from an environmental mythology film.`;

@@ -1,5 +1,6 @@
-// lib/orchestrator.ts — Central pipeline singleton
+// lib/orchestrator.ts — Central pipeline singleton (V2: chunk queue, watchdog, poetic moment)
 import { v4 as uuidv4 } from 'uuid';
+import path from 'path';
 import type {
   AudioChunk,
   OrchestratorState,
@@ -12,6 +13,7 @@ import type {
   EmotionReadyEvent,
   ImageReadyEvent,
   CycleCompleteEvent,
+  PoeticMomentEvent,
 } from '@/types';
 import { sseBroker } from './sse-broker';
 import { transcriptionService } from './transcription';
@@ -34,6 +36,14 @@ class ChunkOrchestrator {
     dalle3: 'unknown',
   };
 
+  // V2: Chunk queue (max depth 1)
+  private chunkQueue: AudioChunk | null = null;
+  private isProcessing: boolean = false;
+
+  // V2: Watchdog timer per cycle
+  private watchdogTimer: ReturnType<typeof setTimeout> | null = null;
+  private watchdogChunkId: string | null = null;
+
   // ─── HELPERS ────────────────────────────────────────────────────────────
 
   private broadcastEvent<T>(type: SystemEvent<T>['type'], data: T): void {
@@ -51,24 +61,80 @@ class ChunkOrchestrator {
     });
   }
 
+  // V2: Clear watchdog timer
+  private clearWatchdog(): void {
+    if (this.watchdogTimer) {
+      clearTimeout(this.watchdogTimer);
+      this.watchdogTimer = null;
+      this.watchdogChunkId = null;
+    }
+  }
+
+  // V2: Start watchdog timer for a cycle
+  private startWatchdog(chunkId: string, emotion: EmotionResult): void {
+    this.clearWatchdog();
+    this.watchdogChunkId = chunkId;
+    this.watchdogTimer = setTimeout(() => {
+      if (this.watchdogChunkId === chunkId) {
+        console.warn(`[Orchestrator] Watchdog triggered — forcing fallback`);
+        const fallbackPath = fallbackManager.getPoolImage(emotion.emotion);
+        if (fallbackPath) {
+          const publicIndex = fallbackPath.indexOf('public/');
+          const servedPath =
+            publicIndex >= 0
+              ? '/' + fallbackPath.slice(publicIndex + 'public/'.length)
+              : `/api/image/${path.basename(fallbackPath)}`;
+
+          this.broadcastEvent<ImageReadyEvent>('image_ready', {
+            servedPath,
+            emotion: emotion.emotion,
+            isFallback: true,
+            chunkId,
+          });
+          this.fallbackCount++;
+        }
+        this.watchdogTimer = null;
+        this.watchdogChunkId = null;
+      }
+    }, 60000);
+  }
+
   // ─── MAIN ENTRY POINT ──────────────────────────────────────────────────
 
   async processChunk(chunk: AudioChunk): Promise<CycleResult> {
-    // Guard: not live (includes idle, paused, processing)
-    if (this.state !== 'live') {
+    // Guard: not live (includes idle, paused)
+    if (this.state !== 'live' && this.state !== 'processing') {
       this.skippedCycles++;
-      const reason = this.state === 'processing' ? 'busy' : 'not_live';
       return {
         chunkId: chunk.chunkId,
         status: 'skipped',
-        skipReason: reason,
+        skipReason: 'not_live',
         totalLatencyMs: 0,
         apiLatencies: {},
         timestamp: Date.now(),
       };
     }
 
+    // V2: If already processing, queue the chunk (max depth 1, drop older)
+    if (this.isProcessing) {
+      console.log(`[Orchestrator] Already processing — queuing chunk ${chunk.chunkId.slice(0, 8)}`);
+      this.chunkQueue = chunk; // overwrites any previously queued chunk
+      return {
+        chunkId: chunk.chunkId,
+        status: 'skipped',
+        skipReason: 'queued',
+        totalLatencyMs: 0,
+        apiLatencies: {},
+        timestamp: Date.now(),
+      };
+    }
+
+    return this.executeChunk(chunk);
+  }
+
+  private async executeChunk(chunk: AudioChunk): Promise<CycleResult> {
     // Begin processing
+    this.isProcessing = true;
     this.state = 'processing';
     this.totalCycles++;
     this.broadcastStateChange();
@@ -107,8 +173,7 @@ class ChunkOrchestrator {
       console.error(`[Orchestrator] Whisper error:`, message);
       this.broadcastEvent('api_error', { api: 'whisper', error: message });
 
-      this.state = 'live';
-      this.broadcastStateChange();
+      this.finishProcessing();
       return {
         chunkId: chunk.chunkId,
         status: 'error',
@@ -138,14 +203,27 @@ class ChunkOrchestrator {
       console.log(
         `[Orchestrator] Emotion: ${emotionResult.emotion} (${emotionResult.score}) [${emotionResult.keywords.join(', ')}] (${emotionResult.latencyMs}ms)`
       );
+
+      // V2 Section 10: Poetic Moment detection
+      const wordCount = transcript.text.trim().split(/\s+/).length;
+      if (emotionResult.score >= 80 && wordCount <= 12) {
+        this.broadcastEvent<PoeticMomentEvent>('poetic_moment', {
+          text: transcript.text,
+          emotion: emotionResult.emotion,
+        });
+        console.log(`[Orchestrator] Poetic moment detected: "${transcript.text}"`);
+      }
+
+      // V2 Section 6: Start watchdog timer after transcript_ready
+      this.startWatchdog(chunk.chunkId, emotionResult);
+
     } catch (error: unknown) {
       this.apiStatus.gpt4o = 'error';
       const message = error instanceof Error ? error.message : String(error);
       console.error(`[Orchestrator] GPT-4o error:`, message);
       this.broadcastEvent('api_error', { api: 'gpt4o', error: message });
 
-      this.state = 'live';
-      this.broadcastStateChange();
+      this.finishProcessing();
       return {
         chunkId: chunk.chunkId,
         status: 'error',
@@ -171,6 +249,9 @@ class ChunkOrchestrator {
         this.fallbackCount++;
       }
 
+      // V2: Clear watchdog — image arrived successfully
+      this.clearWatchdog();
+
       // Broadcast image ready
       this.broadcastEvent<ImageReadyEvent>('image_ready', {
         servedPath: imageResult.servedPath,
@@ -188,8 +269,8 @@ class ChunkOrchestrator {
       console.error(`[Orchestrator] Image generation error:`, message);
       this.broadcastEvent('api_error', { api: 'dalle3', error: message });
 
-      this.state = 'live';
-      this.broadcastStateChange();
+      this.clearWatchdog();
+      this.finishProcessing();
       return {
         chunkId: chunk.chunkId,
         status: 'error',
@@ -223,10 +304,6 @@ class ChunkOrchestrator {
       timestamp: Date.now(),
     };
 
-    // Back to live
-    this.state = 'live';
-    this.broadcastStateChange();
-
     // Broadcast cycle complete
     this.broadcastEvent<CycleCompleteEvent>('cycle_complete', {
       result,
@@ -234,7 +311,33 @@ class ChunkOrchestrator {
     });
 
     console.log(`[Orchestrator] Cycle complete: ${result.status} (${totalLatencyMs}ms total)`);
+
+    // V2: Finish processing and check queue
+    this.finishProcessing();
+
     return result;
+  }
+
+  // V2: Finish processing and drain queue
+  private finishProcessing(): void {
+    this.isProcessing = false;
+    if (this.liveMode) {
+      this.state = 'live';
+    } else {
+      this.state = 'idle';
+    }
+    this.broadcastStateChange();
+
+    // Drain queue: if a chunk is waiting, process it
+    if (this.chunkQueue && this.liveMode) {
+      const nextChunk = this.chunkQueue;
+      this.chunkQueue = null;
+      console.log(`[Orchestrator] Draining queue — processing chunk ${nextChunk.chunkId.slice(0, 8)}`);
+      // Fire-and-forget: don't await, let it run independently
+      this.executeChunk(nextChunk).catch((err) => {
+        console.error(`[Orchestrator] Queued chunk failed:`, err);
+      });
+    }
   }
 
   // ─── CONTROL METHODS ───────────────────────────────────────────────────
@@ -246,6 +349,8 @@ class ChunkOrchestrator {
     } else {
       this.state = 'idle';
       this.liveMode = false;
+      this.chunkQueue = null; // V2: clear queue on stop
+      this.clearWatchdog();
     }
     this.broadcastStateChange();
     console.log(`[Orchestrator] Live mode: ${on ? 'ON' : 'OFF'}`);

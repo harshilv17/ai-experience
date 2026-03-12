@@ -3,8 +3,9 @@ import OpenAI from 'openai';
 import fs from 'fs';
 import path from 'path';
 import type { EmotionResult, ImageResult } from '@/types';
-import { buildImagePrompt } from './prompt-templates';
+import { buildImagePrompt, IMAGE_SYSTEM_CONTEXT } from './prompt-templates';
 import { FallbackManager } from './fallback-manager';
+import { sseBroker } from './sse-broker';
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -30,7 +31,15 @@ class ImageGenerator {
     fallbackManager: FallbackManager
   ): Promise<ImageResult> {
     const startTime = Date.now();
-    const prompt = buildImagePrompt(emotion);
+    const basePrompt = buildImagePrompt(emotion);
+    const fullPrompt = `${IMAGE_SYSTEM_CONTEXT}\n\n${basePrompt}`;
+
+    // V2: Broadcast prompt_ready before calling DALL-E API (Section 4)
+    sseBroker.broadcast({
+      type: 'prompt_ready',
+      data: { prompt: fullPrompt, chunkId: emotion.chunkId },
+      timestamp: Date.now(),
+    });
 
     // ─── RATE LIMIT LOGIC ──────────────────────────────────
     const timeSinceLast = Date.now() - this.lastGenTime;
@@ -50,7 +59,7 @@ class ImageGenerator {
 
         const response = await this.client.images.generate({
           model: 'dall-e-3',
-          prompt,
+          prompt: fullPrompt,
           n: 1,
           size: '1792x1024',
           quality: 'standard',
@@ -73,7 +82,7 @@ class ImageGenerator {
           remoteUrl,
           localPath,
           servedPath: `/api/image/${filename}`,
-          prompt,
+          prompt: fullPrompt,
           emotion: emotion.emotion,
           isFallback: false,
           chunkId: emotion.chunkId,
@@ -119,7 +128,7 @@ class ImageGenerator {
       remoteUrl: '',
       localPath: fallbackPath,
       servedPath,
-      prompt,
+      prompt: fullPrompt,
       emotion: emotion.emotion,
       isFallback: true,
       chunkId: emotion.chunkId,

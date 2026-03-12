@@ -5,7 +5,7 @@ import { useEffect, useRef, useCallback, useState } from 'react';
 import { useAppStore } from '@/store/appStore';
 import { v4 as uuidv4 } from 'uuid';
 
-const CHUNK_DURATION_MS = 15000; // 15 seconds for faster feedback
+const CHUNK_DURATION_MS = 30000; // 30 seconds — V2 pipeline timing
 const TEST_EMOTIONS = ['hope', 'fear', 'grief', 'anger', 'renewal'] as const;
 
 export function useAudioCapture() {

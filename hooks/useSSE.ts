@@ -1,4 +1,4 @@
-// hooks/useSSE.ts — Custom hook: connect to /api/events SSE stream
+// hooks/useSSE.ts — Custom hook: connect to /api/events SSE stream (V2)
 'use client';
 
 import { useEffect, useRef } from 'react';
@@ -10,6 +10,8 @@ import type {
   EmotionReadyEvent,
   ImageReadyEvent,
   CycleCompleteEvent,
+  PromptReadyEvent,
+  PoeticMomentEvent,
 } from '@/types';
 
 export function useSSE() {
@@ -25,6 +27,14 @@ export function useSSE() {
   const updateStats = useAppStore((s) => s.updateStats);
   const addCycleToHistory = useAppStore((s) => s.addCycleToHistory);
   const setApiStatus = useAppStore((s) => s.setApiStatus);
+
+  // V2 actions
+  const setLiveTranscript = useAppStore((s) => s.setLiveTranscript);
+  const setLiveImagePrompt = useAppStore((s) => s.setLiveImagePrompt);
+  const addEmotionHistory = useAppStore((s) => s.addEmotionHistory);
+  const addSessionKeywords = useAppStore((s) => s.addSessionKeywords);
+  const setPoeticLine = useAppStore((s) => s.setPoeticLine);
+  const setLiveEmotionJSON = useAppStore((s) => s.setLiveEmotionJSON);
 
   useEffect(() => {
     function connect() {
@@ -56,16 +66,45 @@ export function useSSE() {
               // Whisper returned → show floating keywords while GPT-4o works
               const data = sysEvent.data as TranscriptReadyEvent;
               setTranscript(data.text, data.words);
+              // V2: Update live transcript + session keywords
+              setLiveTranscript(data.text);
+              addSessionKeywords(data.words);
               break;
             }
             case 'emotion_ready': {
               const data = sysEvent.data as EmotionReadyEvent;
               setCurrentEmotion(data.emotion, data.score, data.keywords);
+              // V2: Update emotion history + live emotion JSON
+              addEmotionHistory(data.emotion, data.score);
+              addSessionKeywords(data.keywords);
+              setLiveEmotionJSON(
+                JSON.stringify(
+                  { emotion: data.emotion, score: data.score, keywords: data.keywords },
+                  null,
+                  2
+                )
+              );
               break;
             }
             case 'image_ready': {
               const data = sysEvent.data as ImageReadyEvent;
               setCurrentImage(data.servedPath, data.emotion, data.isFallback);
+              // V2: Clear emotion JSON ticker when image arrives
+              setTimeout(() => setLiveEmotionJSON(null), 3000);
+              break;
+            }
+            case 'prompt_ready': {
+              // V2: DALL-E 3 prompt broadcast
+              const data = sysEvent.data as PromptReadyEvent;
+              setLiveImagePrompt(data.prompt);
+              break;
+            }
+            case 'poetic_moment': {
+              // V2: Short poetic line moment
+              const data = sysEvent.data as PoeticMomentEvent;
+              setPoeticLine(data.text);
+              // Auto-clear after 7.5s (6s hold + 1.5s fade)
+              setTimeout(() => setPoeticLine(null), 7500);
               break;
             }
             case 'cycle_complete': {

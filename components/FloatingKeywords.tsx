@@ -24,12 +24,15 @@ const COLORS = [
   'rgba(96, 165, 250, 0.75)',  // blue-400
 ];
 
+import type { PipelinePhase } from '@/types';
+
 interface Props {
   words: string[];
   gathering?: boolean; // when true, words drift toward center
+  phase: PipelinePhase;
 }
 
-export default function FloatingKeywords({ words, gathering = false }: Props) {
+export default function FloatingKeywords({ words, gathering = false, phase }: Props) {
   const [visibleWords, setVisibleWords] = useState<FloatingWord[]>([]);
 
   // Generate floating word data with staggered appearance
@@ -64,7 +67,9 @@ export default function FloatingKeywords({ words, gathering = false }: Props) {
     return () => timers.forEach(clearTimeout);
   }, [wordData, words.length]);
 
-  if (words.length === 0) return null;
+  // V2 Section 2: Only show independent floating keywords during displaying/revealing
+  // During 'thinking', words live inside the Robot's thought cloud.
+  if (words.length === 0 || (phase !== 'displaying' && phase !== 'revealing')) return null;
 
   return (
     <div
