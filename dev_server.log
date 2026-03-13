@@ -1,0 +1,56 @@
+
+> ai-experience@0.1.0 dev
+> next dev
+
+  ▲ Next.js 14.2.35
+  - Local:        http://localhost:3005
+  - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 2.2s
+ ○ Compiling / ...
+ ✓ Compiled / in 724ms (560 modules)
+ ⚠ Unsupported metadata viewport is configured in metadata export in /. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET / 200 in 859ms
+ ✓ Compiled in 126ms (275 modules)
+ ✓ Compiled /api/events in 183ms (317 modules)
+ ✓ Compiled (488 modules)
+[SSEBroker] Client connected: c280da1f-f39c-4219-9760-6d2d7107bd87 (total: 1)
+ GET /favicon.ico 200 in 398ms
+ ✓ Compiled /control in 166ms (759 modules)
+ ⚠ Unsupported metadata viewport is configured in metadata export in /control. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /control 200 in 235ms
+ GET /api/events 200 in 13143ms
+[SSEBroker] Client disconnected: c280da1f-f39c-4219-9760-6d2d7107bd87 (total: 0)
+[SSEBroker] Client connected: 455fb917-dc42-41eb-ae7b-77fd9836ca2f (total: 1)
+ ✓ Compiled /api/health in 105ms (519 modules)
+(node:44634) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ GET /api/health 200 in 3209ms
+ ✓ Compiled /api/control in 147ms (521 modules)
+[Orchestrator] Live mode: ON
+ POST /api/control 200 in 203ms
+[Orchestrator] Force generating with emotion: Renewal
+[ImageGenerator] Generating image (attempt 1/2)
+ ⚠ Unsupported metadata viewport is configured in metadata export in /. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET / 200 in 59ms
+ GET /api/events 200 in 49423ms
+[SSEBroker] Client disconnected: 455fb917-dc42-41eb-ae7b-77fd9836ca2f (total: 0)
+ POST /api/control 200 in 7063ms
+[SSEBroker] Client connected: afa5afa4-5191-46f2-8f19-2be30f135156 (total: 1)
+[ImageGenerator] Cached image: /tmp/ai-exp-cache/img_e6e00827-c85e-43e6-ba97-e7ea969f4130_1773311866289.png (3685558 bytes)
+[FallbackManager] Added to Renewal pool (size: 1)
+ ✓ Compiled /api/image/[id] in 74ms (494 modules)
+ GET /api/image/img_e6e00827-c85e-43e6-ba97-e7ea969f4130_1773311866289.png 200 in 382ms
+ ⚠ Unsupported metadata viewport is configured in metadata export in /control. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+ GET /control 200 in 59ms
+ GET /api/events 200 in 25112ms
+[SSEBroker] Client disconnected: afa5afa4-5191-46f2-8f19-2be30f135156 (total: 0)
+[SSEBroker] Client connected: 9600399c-2e02-466e-98f5-bffe2c81413a (total: 1)
+ GET /api/events 200 in 365811ms
+[SSEBroker] Client disconnected: 9600399c-2e02-466e-98f5-bffe2c81413a (total: 0)
+[?25h

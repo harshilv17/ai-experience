@@ -1,7 +1,7 @@
 // components/RobotMascot.tsx — SVG/CSS Robot Character (Section 2 & 11)
 'use client';
 
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, memo } from 'react';
 import { useAppStore } from '@/store/appStore';
 import type { PipelinePhase } from '@/types';
 
@@ -10,7 +10,7 @@ interface Props {
   consecutiveSameEmotion: number;
 }
 
-export default function RobotMascot({ phase, consecutiveSameEmotion }: Props) {
+export default memo(function RobotMascot({ phase, consecutiveSameEmotion }: Props) {
   const floatingKeywords = useAppStore((s) => s.floatingKeywords);
   const sessionKeywords = useAppStore((s) => s.sessionKeywords);
 
@@ -294,4 +294,4 @@ export default function RobotMascot({ phase, consecutiveSameEmotion }: Props) {
       `}</style>
     </div>
   );
-}
+})

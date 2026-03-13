@@ -1,7 +1,7 @@
 // components/WaterSpiritCanvas.tsx — Animated Himalayan water spirit with mist and particles
 'use client';
 
-import { useRef, useMemo } from 'react';
+import { useRef, useMemo, useState, useEffect, memo } from 'react';
 import type { PipelinePhase } from '@/types';
 
 interface Props {
@@ -29,10 +29,15 @@ function generateRipples(count: number) {
   }));
 }
 
-export default function WaterSpiritCanvas({ phase }: Props) {
-  const particles = useMemo(() => generateParticles(35), []);
-  const ripples = useMemo(() => generateRipples(5), []);
+export default memo(function WaterSpiritCanvas({ phase }: Props) {
+  const [isMounted, setIsMounted] = useState(false);
+  const particles = useMemo(() => isMounted ? generateParticles(35) : [], [isMounted]);
+  const ripples = useMemo(() => isMounted ? generateRipples(5) : [], [isMounted]);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // Phase-dependent speed multiplier for particles
   const speedClass = phase === 'processing' ? 'spirit-active' : phase === 'listening' ? 'spirit-listening' : '';
@@ -329,4 +334,4 @@ export default function WaterSpiritCanvas({ phase }: Props) {
       `}</style>
     </div>
   );
-}
+})

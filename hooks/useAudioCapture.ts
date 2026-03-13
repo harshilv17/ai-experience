@@ -14,7 +14,6 @@ export function useAudioCapture() {
   const testMode = useAppStore((s) => s.testMode);
 
   const [isCapturing, setIsCapturing] = useState(false);
-  const [speechDurationMs, setSpeechDurationMs] = useState(0);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -41,7 +40,6 @@ export function useAudioCapture() {
         // Reset for next chunk
         audioChunksRef.current = [];
         speechDurationRef.current = 0;
-        setSpeechDurationMs(0);
 
         // Restart recording immediately
         if (isCapturingRef.current && streamRef.current) {
@@ -176,7 +174,6 @@ export function useAudioCapture() {
           isSpeaking = false;
           if (speechTimerRef.current) {
             speechDurationRef.current += Date.now() - speechTimerRef.current;
-            setSpeechDurationMs(speechDurationRef.current);
             speechTimerRef.current = null;
           }
         }
@@ -191,7 +188,6 @@ export function useAudioCapture() {
         if (isSpeaking && speechTimerRef.current) {
           speechDurationRef.current += Date.now() - speechTimerRef.current;
           speechTimerRef.current = Date.now();
-          setSpeechDurationMs(speechDurationRef.current);
         }
         processCurrentChunk();
       }, CHUNK_DURATION_MS);
@@ -232,7 +228,6 @@ export function useAudioCapture() {
     audioChunksRef.current = [];
     speechDurationRef.current = 0;
     speechTimerRef.current = null;
-    setSpeechDurationMs(0);
 
     console.log('[AudioCapture] Stopped capturing');
   }, []);
@@ -248,5 +243,5 @@ export function useAudioCapture() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [liveMode, testMode]);
 
-  return { isCapturing, speechDurationMs };
+  return { isCapturing };
 }

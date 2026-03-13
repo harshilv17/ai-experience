@@ -2,9 +2,9 @@
 'use client';
 
 import { useAppStore } from '@/store/appStore';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, memo } from 'react';
 
-export default function AIThinkingTicker() {
+export default memo(function AIThinkingTicker() {
   const liveEmotionJSON = useAppStore((s) => s.liveEmotionJSON);
   const phase = useAppStore((s) => s.pipelinePhase);
   const [displayedText, setDisplayedText] = useState('');
@@ -61,4 +61,4 @@ export default function AIThinkingTicker() {
       </div>
     </div>
   );
-}
+})

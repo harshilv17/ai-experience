@@ -2,7 +2,7 @@
 'use client';
 
 import { useAppStore } from '@/store/appStore';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, memo } from 'react';
 
 const EMOTION_COLORS: Record<string, string> = {
   Hope: 'rgba(253, 224, 71, 0.6)',
@@ -12,7 +12,7 @@ const EMOTION_COLORS: Record<string, string> = {
   Renewal: 'rgba(52, 211, 153, 0.6)',
 };
 
-export default function PoeticLine() {
+export default memo(function PoeticLine() {
   const poeticLine = useAppStore((s) => s.poeticLine);
   // Get emotion from history or default to Hope
   const emotionHistory = useAppStore((s) => s.emotionHistory);
@@ -76,4 +76,4 @@ export default function PoeticLine() {
       </div>
     </div>
   );
-}
+})

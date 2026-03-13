@@ -2,6 +2,7 @@
 'use client';
 
 import { useAppStore } from '@/store/appStore';
+import { memo } from 'react';
 
 const EMOTION_COLORS: Record<string, string> = {
   Hope: 'rgba(253, 224, 71, 0.8)',
@@ -11,7 +12,7 @@ const EMOTION_COLORS: Record<string, string> = {
   Renewal: 'rgba(52, 211, 153, 0.8)',
 };
 
-export default function EmotionRibbon() {
+export default memo(function EmotionRibbon() {
   const emotionHistory = useAppStore((s) => s.emotionHistory);
 
   // Take the last 6 entries, reverse so newest is at the top
@@ -56,4 +57,4 @@ export default function EmotionRibbon() {
       `}</style>
     </div>
   );
-}
+})

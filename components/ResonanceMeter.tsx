@@ -2,7 +2,7 @@
 'use client';
 
 import { useAppStore } from '@/store/appStore';
-import { useMemo, useEffect, useState } from 'react';
+import { useMemo, useEffect, useState, memo } from 'react';
 
 const EMOTION_COLORS: Record<string, string> = {
   Hope: 'rgba(253, 224, 71, 1)',    // Yellow/Gold
@@ -12,7 +12,7 @@ const EMOTION_COLORS: Record<string, string> = {
   Renewal: 'rgba(52, 211, 153, 1)', // Emerald/Spring
 };
 
-export default function ResonanceMeter() {
+export default memo(function ResonanceMeter() {
   const emotionHistory = useAppStore((s) => s.emotionHistory);
   const [pulse, setPulse] = useState(false);
 
@@ -51,4 +51,4 @@ export default function ResonanceMeter() {
       />
     </div>
   );
-}
+})
