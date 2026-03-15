@@ -35,13 +35,13 @@ class TranscriptionService {
         chunkId: chunk.chunkId,
         latencyMs,
       };
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Unknown Whisper error';
-      throw {
-        code: 'WHISPER_ERROR',
-        message,
-        chunkId: chunk.chunkId,
-      };
+    } catch (error: any) {
+      console.error('[Whisper API Error Details]', error);
+      const message = error instanceof Error ? error.message : error?.message || 'Unknown Whisper error';
+      const err = new Error(message);
+      (err as any).code = 'WHISPER_ERROR';
+      (err as any).chunkId = chunk.chunkId;
+      throw err;
     }
   }
 }
