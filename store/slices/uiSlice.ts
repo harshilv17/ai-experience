@@ -24,10 +24,20 @@ export interface UiSlice {
   setLiveImagePrompt: (p: string) => void;
   setPoeticLine: (line: string | null) => void;
   setLiveEmotionJSON: (json: string | null) => void;
+
+  displayStartedAt: number | null;
+  pendingPromptData: { transcript: string; keywords: string[]; emotion: EmotionClass; score: number } | null;
+
+  setDisplayStartedAt: (ts: number | null) => void;
+  clearDisplayStartedAt: () => void;
+  setPendingPromptData: (data: { transcript: string; keywords: string[]; emotion: EmotionClass; score: number } | null) => void;
+  transitionToShowingPrompt: () => void;
+  clearPendingPrompt: () => void;
 }
 
 const OVERLAY_DURATION_MS = parseInt(process.env.NEXT_PUBLIC_OVERLAY_DURATION_MS || '5000', 10);
 const IMAGE_DISPLAY_DURATION_MS = 18000;
+export const DISPLAY_HOLD_MS = 10000;
 
 let displayTimer: ReturnType<typeof setTimeout> | null = null;
 let revealTimer: ReturnType<typeof setTimeout> | null = null;
@@ -46,6 +56,8 @@ export const createUiSlice: StateCreator<AppState, [], [], UiSlice> = (set) => (
   liveImagePrompt: '',
   poeticLine: null,
   liveEmotionJSON: null,
+  displayStartedAt: null,
+  pendingPromptData: null,
 
   setPipelinePhase: (phase) => set({ pipelinePhase: phase }),
 
@@ -60,6 +72,7 @@ export const createUiSlice: StateCreator<AppState, [], [], UiSlice> = (set) => (
       showOverlay: true,
       floatingKeywords: [],
       liveEmotionJSON: null,
+      displayStartedAt: Date.now(),
     });
 
     revealTimer = setTimeout(() => {
@@ -103,4 +116,10 @@ export const createUiSlice: StateCreator<AppState, [], [], UiSlice> = (set) => (
   setLiveImagePrompt: (p) => set({ liveImagePrompt: p }),
   setPoeticLine: (line) => set({ poeticLine: line }),
   setLiveEmotionJSON: (json) => set({ liveEmotionJSON: json }),
+
+  setDisplayStartedAt: (ts) => set({ displayStartedAt: ts }),
+  clearDisplayStartedAt: () => set({ displayStartedAt: null }),
+  setPendingPromptData: (data) => set({ pendingPromptData: data }),
+  transitionToShowingPrompt: () => set({ pipelinePhase: 'showing_prompt' }),
+  clearPendingPrompt: () => set({ pendingPromptData: null }),
 });
