@@ -1,12 +1,10 @@
-// components/ProjectionDisplay.tsx — Fullscreen 5-phase immersive projection display
+// components/ProjectionDisplay.tsx — Fullscreen immersive projection display with phased pipeline
 'use client';
 
 import { useEffect, useRef, useCallback } from 'react';
 import { useAppStore } from '@/store/appStore';
-import { useDisplayTimer } from '@/hooks/useDisplayTimer';
 import RobotMascot from './RobotMascot';
 import FloatingKeywords from './FloatingKeywords';
-import PromptPreview from './PromptPreview';
 import EmotionOverlay from './EmotionOverlay';
 import ResonanceMeter from './ResonanceMeter';
 import EmotionRibbon from './EmotionRibbon';
@@ -14,18 +12,17 @@ import PoeticLine from './PoeticLine';
 import AIThinkingTicker from './AIThinkingTicker';
 
 export default function ProjectionDisplay() {
-  useDisplayTimer(); // Transition displaying → showing_prompt after min image display time
-
   const currentImagePath = useAppStore((s) => s.currentImagePath);
   const pipelinePhase = useAppStore((s) => s.pipelinePhase);
   const floatingKeywords = useAppStore((s) => s.floatingKeywords);
   const consecutiveSameEmotion = useAppStore((s) => s.consecutiveSameEmotion);
+  const currentEmotion = useAppStore((s) => s.currentEmotion);
 
-  // Two image layers for crossfade
   const layerARef = useRef<HTMLImageElement>(null);
   const layerBRef = useRef<HTMLImageElement>(null);
   const activeLayerRef = useRef<'A' | 'B'>('A');
   const prevImageRef = useRef<string | null>(null);
+  const prevPhaseRef = useRef<string>(pipelinePhase);
 
   const crossfadeTo = useCallback((newSrc: string, durationMs: number = 1200) => {
     const layerA = layerARef.current;
@@ -53,36 +50,110 @@ export default function ProjectionDisplay() {
     }
   }, []);
 
+  const fadeOutImages = useCallback(() => {
+    const layerA = layerARef.current;
+    const layerB = layerBRef.current;
+    const fadeMs = 1500;
+    if (layerA) {
+      layerA.style.transition = `opacity ${fadeMs}ms ease-in-out`;
+      layerA.style.opacity = '0';
+    }
+    if (layerB) {
+      layerB.style.transition = `opacity ${fadeMs}ms ease-in-out`;
+      layerB.style.opacity = '0';
+    }
+    prevImageRef.current = null;
+  }, []);
+
   useEffect(() => {
     if (currentImagePath && currentImagePath !== prevImageRef.current) {
       prevImageRef.current = currentImagePath;
-      // V2 Escalation: Slow transition from 1200ms to 2500ms
       const duration = consecutiveSameEmotion >= 3 ? 2500 : 1200;
       crossfadeTo(currentImagePath, duration);
     }
   }, [currentImagePath, crossfadeTo, consecutiveSameEmotion]);
 
-  // Determine if image layers should be visible (also show dimmed during showing_prompt)
-  const showImage = pipelinePhase === 'revealing' || pipelinePhase === 'displaying' || pipelinePhase === 'showing_prompt';
+  useEffect(() => {
+    if (pipelinePhase === 'idle' && (prevPhaseRef.current === 'displaying' || prevPhaseRef.current === 'revealing')) {
+      fadeOutImages();
+    }
+    prevPhaseRef.current = pipelinePhase;
+  }, [pipelinePhase, fadeOutImages]);
+
+  const showImage = pipelinePhase === 'revealing' || pipelinePhase === 'displaying';
+  const isIdle = pipelinePhase === 'idle';
+  const isProcessing = pipelinePhase === 'processing' || pipelinePhase === 'listening';
+
+  const emotionAccent = currentEmotion
+    ? ({
+        Hope: 'rgba(253, 224, 71, 0.08)',
+        Fear: 'rgba(129, 140, 248, 0.08)',
+        Grief: 'rgba(56, 189, 248, 0.08)',
+        Anger: 'rgba(251, 113, 133, 0.08)',
+        Renewal: 'rgba(52, 211, 153, 0.08)',
+      }[currentEmotion] ?? 'transparent')
+    : 'transparent';
 
   return (
     <div className="fixed inset-0 bg-black overflow-hidden">
-      {/* ─── V2: ROBOT MASCOT & NEW COMPONENTS ────────────────── */}
+      {/* ─── AMBIENT BACKGROUND ───────────────────────────────── */}
+      <div
+        className="fixed inset-0 transition-opacity duration-[3000ms]"
+        style={{
+          zIndex: 0,
+          opacity: isIdle || isProcessing ? 1 : 0,
+          background: `
+            radial-gradient(ellipse at 20% 80%, rgba(56, 189, 248, 0.04) 0%, transparent 50%),
+            radial-gradient(ellipse at 80% 20%, rgba(129, 140, 248, 0.03) 0%, transparent 50%),
+            radial-gradient(ellipse at 50% 50%, ${emotionAccent} 0%, transparent 60%)
+          `,
+        }}
+      />
+
+      {/* ─── SUBTLE GRID PATTERN (idle) ───────────────────────── */}
+      <div
+        className="fixed inset-0 pointer-events-none transition-opacity duration-[2000ms]"
+        style={{
+          zIndex: 1,
+          opacity: isIdle ? 0.03 : 0,
+          backgroundImage: `
+            linear-gradient(rgba(56, 189, 248, 0.3) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(56, 189, 248, 0.3) 1px, transparent 1px)
+          `,
+          backgroundSize: '60px 60px',
+        }}
+      />
+
+      {/* ─── PHASE INDICATOR ──────────────────────────────────── */}
+      <div
+        className="fixed top-6 left-1/2 -translate-x-1/2 z-[14] transition-all duration-700"
+        style={{ opacity: isIdle || isProcessing ? 0.6 : 0 }}
+      >
+        <div className="flex items-center gap-3 px-5 py-2.5 rounded-full border border-sky-500/10 bg-black/40 backdrop-blur-md">
+          <div className={`w-2 h-2 rounded-full ${
+            isProcessing ? 'bg-sky-400 animate-pulse' : 'bg-sky-800'
+          }`} />
+          <span className="text-[11px] tracking-[0.3em] uppercase text-sky-300/50 font-light">
+            {pipelinePhase === 'listening' ? 'Listening' :
+             pipelinePhase === 'processing' ? 'Analyzing' :
+             'Awaiting Speech'}
+          </span>
+        </div>
+      </div>
+
+      {/* ─── ROBOT MASCOT & COMPONENTS ────────────────────────── */}
       <RobotMascot phase={pipelinePhase} consecutiveSameEmotion={consecutiveSameEmotion} />
       <ResonanceMeter />
       <EmotionRibbon />
       <PoeticLine />
       <AIThinkingTicker />
 
-      {/* ─── FLOATING KEYWORDS (during showing_prompt phase) ─── */}
+      {/* ─── FLOATING KEYWORDS ────────────────────────────────── */}
       <FloatingKeywords
         words={floatingKeywords}
-        gathering={false}
+        gathering={pipelinePhase === 'revealing'}
         phase={pipelinePhase}
       />
-
-      {/* ─── PROMPT PREVIEW (DALL-E prompt during showing_prompt) ─ */}
-      <PromptPreview phase={pipelinePhase} />
 
       {/* ─── IMAGE LAYER A ────────────────────────────────────── */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -94,7 +165,6 @@ export default function ProjectionDisplay() {
           opacity: 0,
           transition: 'opacity 1200ms ease-in-out',
           zIndex: showImage ? 6 : 0,
-          filter: pipelinePhase === 'showing_prompt' ? 'brightness(0.25)' : 'none',
         }}
       />
 
@@ -108,20 +178,15 @@ export default function ProjectionDisplay() {
           opacity: 0,
           transition: 'opacity 1200ms ease-in-out',
           zIndex: showImage ? 7 : 0,
-          filter: pipelinePhase === 'showing_prompt' ? 'brightness(0.25)' : 'none',
         }}
       />
 
       {/* ─── REVEAL MIST OVERLAY (during transition) ──────────── */}
       <div
-        className="fixed inset-0 pointer-events-none transition-opacity duration-2000"
+        className="fixed inset-0 pointer-events-none transition-opacity duration-[2000ms]"
         style={{
           zIndex: 9,
-          opacity: pipelinePhase === 'revealing'
-            ? (consecutiveSameEmotion >= 3 ? 0.85 : 0.6)
-            : pipelinePhase === 'showing_prompt'
-              ? 0.5
-              : 0,
+          opacity: pipelinePhase === 'revealing' ? (consecutiveSameEmotion >= 3 ? 0.85 : 0.6) : 0,
           background: 'radial-gradient(ellipse at center, rgba(56, 189, 248, 0.15) 0%, rgba(0, 0, 0, 0.5) 60%, rgba(0, 0, 0, 0.8) 100%)',
         }}
       />
@@ -136,7 +201,16 @@ export default function ProjectionDisplay() {
         className="fixed inset-0 pointer-events-none"
         style={{
           zIndex: 11,
-          background: 'radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.4) 100%)',
+          background: 'radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.5) 100%)',
+        }}
+      />
+
+      {/* ─── BOTTOM GRADIENT (always present) ─────────────────── */}
+      <div
+        className="fixed bottom-0 left-0 right-0 h-32 pointer-events-none"
+        style={{
+          zIndex: 11,
+          background: 'linear-gradient(to top, rgba(0,0,0,0.6), transparent)',
         }}
       />
     </div>

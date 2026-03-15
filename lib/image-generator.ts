@@ -20,7 +20,7 @@ class ImageGenerator {
   constructor() {
     this.client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     this.cacheDir = process.env.CACHE_DIR || '/tmp/ai-exp-cache';
-    this.rateLimitMs = parseInt(process.env.IMAGE_RATE_LIMIT_MS || '20000', 10);
+    this.rateLimitMs = parseInt(process.env.IMAGE_RATE_LIMIT_MS || '5000', 10);
     this.maxRetries = parseInt(process.env.MAX_API_RETRIES || '2', 10);
     this.retryBackoffMs = parseInt(process.env.RETRY_BACKOFF_MS || '2000', 10);
     this.ensureCacheDir();
@@ -61,7 +61,7 @@ class ImageGenerator {
           model: 'dall-e-3',
           prompt: fullPrompt,
           n: 1,
-          size: '1792x1024',
+          size: '1024x1024',
           quality: 'standard',
         });
 
