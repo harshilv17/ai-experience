@@ -68,6 +68,7 @@ npm run dev
 | `FALLBACK_IMAGE_DIR` | `public/fallback` | Pre-seeded fallback image directory |
 | `ENABLE_EMOTION_OVERLAY` | `true` | Show emotion/keyword overlay |
 | `OVERLAY_DURATION_MS` | `3000` | How long overlay is visible |
+| `NEXT_PUBLIC_DISPLAY_HOLD_MS` | `18000` | Min time (ms) to show image only before next cycle’s keywords (15–20s) |
 | `PROFANITY_FILTER` | `true` | Filter unsafe content |
 
 ## Architecture Overview

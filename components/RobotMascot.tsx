@@ -20,9 +20,13 @@ export default memo(function RobotMascot({ phase, consecutiveSameEmotion }: Prop
   // Determine robot visual state based on pipeline phase
   const state = useMemo(() => {
     switch (phase) {
-      case 'processing': return 'thinking';
-      case 'revealing': return 'revealing';
-      case 'displaying': return 'hidden';
+      case 'processing':
+      case 'showing_prompt':
+        return 'thinking';
+      case 'revealing':
+        return 'revealing';
+      case 'displaying':
+        return 'hidden';
       case 'idle':
       case 'listening':
       default:

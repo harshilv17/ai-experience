@@ -67,9 +67,9 @@ export default function FloatingKeywords({ words, gathering = false, phase }: Pr
     return () => timers.forEach(clearTimeout);
   }, [wordData, words.length]);
 
-  // V2 Section 2: Only show independent floating keywords during displaying/revealing
-  // During 'thinking', words live inside the Robot's thought cloud.
-  if (words.length === 0 || (phase !== 'displaying' && phase !== 'revealing')) return null;
+  // Only show floating keywords during showing_prompt (prompt/keywords phase before next image)
+  // During displaying: image only, no words. During processing: words in Robot's thought cloud.
+  if (words.length === 0 || phase !== 'showing_prompt') return null;
 
   return (
     <div

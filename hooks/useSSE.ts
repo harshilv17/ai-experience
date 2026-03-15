@@ -3,6 +3,7 @@
 
 import { useEffect, useRef } from 'react';
 import { useAppStore } from '@/store/appStore';
+import { DISPLAY_HOLD_MS } from '@/store/slices/uiSlice';
 import type {
   SystemEvent,
   StateChangeEvent,
@@ -17,7 +18,6 @@ import type {
 export function useSSE() {
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
   const setOrchestratorState = useAppStore((s) => s.setOrchestratorState);
   const setLiveMode = useAppStore((s) => s.setLiveMode);
   const setPipelinePhase = useAppStore((s) => s.setPipelinePhase);
@@ -27,6 +27,7 @@ export function useSSE() {
   const updateStats = useAppStore((s) => s.updateStats);
   const addCycleToHistory = useAppStore((s) => s.addCycleToHistory);
   const setApiStatus = useAppStore((s) => s.setApiStatus);
+  const setPendingPromptData = useAppStore((s) => s.setPendingPromptData);
 
   // V2 actions
   const setLiveTranscript = useAppStore((s) => s.setLiveTranscript);
@@ -63,27 +64,56 @@ export function useSSE() {
               break;
             }
             case 'transcript_ready': {
-              // Whisper returned → show floating keywords while GPT-4o works
               const data = sysEvent.data as TranscriptReadyEvent;
-              setTranscript(data.text, data.words);
-              // V2: Update live transcript + session keywords
-              setLiveTranscript(data.text);
-              addSessionKeywords(data.words);
+              const state = useAppStore.getState();
+              const inDisplayHold =
+                state.pipelinePhase === 'displaying' &&
+                state.displayStartedAt != null &&
+                Date.now() - state.displayStartedAt < DISPLAY_HOLD_MS;
+
+              if (inDisplayHold && state.displayStartedAt != null) {
+                const prev = state.pendingPromptData;
+                setPendingPromptData({
+                  transcript: data.text,
+                  keywords: data.words,
+                  emotion: prev?.emotion ?? state.currentEmotion ?? 'Renewal',
+                  score: prev?.score ?? state.currentScore ?? 50,
+                });
+              } else {
+                setTranscript(data.text, data.words);
+                setLiveTranscript(data.text);
+                addSessionKeywords(data.words);
+              }
               break;
             }
             case 'emotion_ready': {
               const data = sysEvent.data as EmotionReadyEvent;
-              setCurrentEmotion(data.emotion, data.score, data.keywords);
-              // V2: Update emotion history + live emotion JSON
-              addEmotionHistory(data.emotion, data.score);
-              addSessionKeywords(data.keywords);
-              setLiveEmotionJSON(
-                JSON.stringify(
-                  { emotion: data.emotion, score: data.score, keywords: data.keywords },
-                  null,
-                  2
-                )
-              );
+              const state = useAppStore.getState();
+              const inDisplayHold =
+                state.pipelinePhase === 'displaying' &&
+                state.displayStartedAt != null &&
+                Date.now() - state.displayStartedAt < DISPLAY_HOLD_MS;
+
+              if (inDisplayHold && state.displayStartedAt != null) {
+                const prev = state.pendingPromptData;
+                setPendingPromptData({
+                  transcript: prev?.transcript ?? state.currentTranscript ?? state.liveTranscript,
+                  keywords: data.keywords,
+                  emotion: data.emotion,
+                  score: data.score,
+                });
+              } else {
+                setCurrentEmotion(data.emotion, data.score, data.keywords);
+                addEmotionHistory(data.emotion, data.score);
+                addSessionKeywords(data.keywords);
+                setLiveEmotionJSON(
+                  JSON.stringify(
+                    { emotion: data.emotion, score: data.score, keywords: data.keywords },
+                    null,
+                    2
+                  )
+                );
+              }
               break;
             }
             case 'image_ready': {
@@ -152,9 +182,7 @@ export function useSSE() {
         eventSourceRef.current.close();
         eventSourceRef.current = null;
       }
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current);
-      }
+      if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

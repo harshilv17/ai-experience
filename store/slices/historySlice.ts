@@ -22,14 +22,7 @@ export const createHistorySlice: StateCreator<AppState, [], [], HistorySlice> = 
     set((state) => ({
       cycleHistory: [result, ...state.cycleHistory].slice(0, 50),
     }));
-    setTimeout(() => {
-      set((state) => {
-        if (state.pipelinePhase === 'revealing') {
-          return { pipelinePhase: 'displaying', floatingKeywords: [], currentTranscript: '' };
-        }
-        return state;
-      });
-    }, 2500);
+    // Note: Pipeline phase & keyword clearing now handled by uiSlice (setCurrentImage, display timer)
   },
 
   addEmotionHistory: (emotion, score) => {

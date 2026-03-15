@@ -10,9 +10,9 @@ export default memo(function AIThinkingTicker() {
   const [displayedText, setDisplayedText] = useState('');
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Only show during processing or revealing phases
+  // Show during processing, showing_prompt, or revealing phases
   const show =
-    (phase === 'processing' || phase === 'revealing') && liveEmotionJSON !== null;
+    (phase === 'processing' || phase === 'showing_prompt' || phase === 'revealing') && liveEmotionJSON !== null;
 
   useEffect(() => {
     if (!liveEmotionJSON) {

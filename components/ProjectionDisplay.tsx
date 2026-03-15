@@ -3,8 +3,10 @@
 
 import { useEffect, useRef, useCallback } from 'react';
 import { useAppStore } from '@/store/appStore';
+import { useDisplayTimer } from '@/hooks/useDisplayTimer';
 import RobotMascot from './RobotMascot';
 import FloatingKeywords from './FloatingKeywords';
+import PromptPreview from './PromptPreview';
 import EmotionOverlay from './EmotionOverlay';
 import ResonanceMeter from './ResonanceMeter';
 import EmotionRibbon from './EmotionRibbon';
@@ -12,6 +14,8 @@ import PoeticLine from './PoeticLine';
 import AIThinkingTicker from './AIThinkingTicker';
 
 export default function ProjectionDisplay() {
+  useDisplayTimer(); // Transition displaying → showing_prompt after min image display time
+
   const currentImagePath = useAppStore((s) => s.currentImagePath);
   const pipelinePhase = useAppStore((s) => s.pipelinePhase);
   const floatingKeywords = useAppStore((s) => s.floatingKeywords);
@@ -58,8 +62,8 @@ export default function ProjectionDisplay() {
     }
   }, [currentImagePath, crossfadeTo, consecutiveSameEmotion]);
 
-  // Determine if image layers should be visible
-  const showImage = pipelinePhase === 'revealing' || pipelinePhase === 'displaying';
+  // Determine if image layers should be visible (also show dimmed during showing_prompt)
+  const showImage = pipelinePhase === 'revealing' || pipelinePhase === 'displaying' || pipelinePhase === 'showing_prompt';
 
   return (
     <div className="fixed inset-0 bg-black overflow-hidden">
@@ -70,12 +74,15 @@ export default function ProjectionDisplay() {
       <PoeticLine />
       <AIThinkingTicker />
 
-      {/* ─── FLOATING KEYWORDS (Mentimeter-style) ─────────────── */}
+      {/* ─── FLOATING KEYWORDS (during showing_prompt phase) ─── */}
       <FloatingKeywords
         words={floatingKeywords}
-        gathering={pipelinePhase === 'revealing'}
+        gathering={false}
         phase={pipelinePhase}
       />
+
+      {/* ─── PROMPT PREVIEW (DALL-E prompt during showing_prompt) ─ */}
+      <PromptPreview phase={pipelinePhase} />
 
       {/* ─── IMAGE LAYER A ────────────────────────────────────── */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -87,6 +94,7 @@ export default function ProjectionDisplay() {
           opacity: 0,
           transition: 'opacity 1200ms ease-in-out',
           zIndex: showImage ? 6 : 0,
+          filter: pipelinePhase === 'showing_prompt' ? 'brightness(0.25)' : 'none',
         }}
       />
 
@@ -100,6 +108,7 @@ export default function ProjectionDisplay() {
           opacity: 0,
           transition: 'opacity 1200ms ease-in-out',
           zIndex: showImage ? 7 : 0,
+          filter: pipelinePhase === 'showing_prompt' ? 'brightness(0.25)' : 'none',
         }}
       />
 
@@ -108,8 +117,11 @@ export default function ProjectionDisplay() {
         className="fixed inset-0 pointer-events-none transition-opacity duration-2000"
         style={{
           zIndex: 9,
-          // V2 Escalation: Mist opacity increases to 0.85 if escalated
-          opacity: pipelinePhase === 'revealing' ? (consecutiveSameEmotion >= 3 ? 0.85 : 0.6) : 0,
+          opacity: pipelinePhase === 'revealing'
+            ? (consecutiveSameEmotion >= 3 ? 0.85 : 0.6)
+            : pipelinePhase === 'showing_prompt'
+              ? 0.5
+              : 0,
           background: 'radial-gradient(ellipse at center, rgba(56, 189, 248, 0.15) 0%, rgba(0, 0, 0, 0.5) 60%, rgba(0, 0, 0, 0.8) 100%)',
         }}
       />

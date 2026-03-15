@@ -4,7 +4,7 @@ export type EmotionClass = 'Hope' | 'Fear' | 'Grief' | 'Anger' | 'Renewal';
 
 export type OrchestratorState = 'idle' | 'live' | 'paused' | 'processing';
 
-export type PipelinePhase = 'idle' | 'listening' | 'processing' | 'revealing' | 'displaying';
+export type PipelinePhase = 'idle' | 'listening' | 'processing' | 'showing_prompt' | 'revealing' | 'displaying';
 
 export type CycleStatus = 'complete' | 'skipped' | 'fallback' | 'error';
 
@@ -193,6 +193,9 @@ export interface AppState {
   consecutiveSameEmotion: number;
   poeticLine: string | null;
   liveEmotionJSON: string | null;
+  // Pipeline timing (image display duration, deferred prompt)
+  displayStartedAt: number | null;
+  pendingPromptData: { transcript: string; keywords: string[]; emotion: EmotionClass; score: number } | null;
 
   // Actions
   setOrchestratorState: (state: OrchestratorState) => void;
@@ -215,4 +218,9 @@ export interface AppState {
   addSessionKeywords: (words: string[]) => void;
   setPoeticLine: (line: string | null) => void;
   setLiveEmotionJSON: (json: string | null) => void;
+  setDisplayStartedAt: (ts: number | null) => void;
+  clearDisplayStartedAt: () => void;
+  setPendingPromptData: (data: { transcript: string; keywords: string[]; emotion: EmotionClass; score: number } | null) => void;
+  transitionToShowingPrompt: () => void;
+  clearPendingPrompt: () => void;
 }
