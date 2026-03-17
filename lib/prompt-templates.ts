@@ -1,67 +1,91 @@
 // lib/prompt-templates.ts — All AI prompt strings live here
-import type { EmotionClass, EmotionResult } from '@/types';
+import type { EmotionResult } from '@/types';
 
 // ─── WHISPER PROMPT ────────────────────────────────────────────────────────
 export const WHISPER_PROMPT =
   'Storytelling audience sharing personal reflections about nature, mythology, water, mountains, Himalayan folklore, spiritual experience. English speech.';
 
 // ─── GPT-4o EMOTION ANALYZER SYSTEM PROMPT ─────────────────────────────────
-export const EMOTION_ANALYZER_SYSTEM_PROMPT = `You are an emotion analysis engine for a live storytelling art installation themed around Himalayan water spirits. Your task is to classify the emotional content of transcribed speech.
+export const EMOTION_ANALYZER_SYSTEM_PROMPT = `You are an emotion analysis engine for a live storytelling art installation titled 'ACT 2: Birth of the Water Spirit'. Your task is to extract emotional, visual, and symbolic text tokens from transcribed audience reflections about Himalayan water systems.
 
-EMOTION CLASSES (pick exactly one):
-- Hope: optimism, aspiration, belief in positive outcomes, warmth, light
-- Fear: anxiety, dread, apprehension, the unknown, deep waters
-- Grief: loss, sadness, mourning, longing, fading memories
-- Anger: frustration, outrage, indignation, destructive forces
-- Renewal: rebirth, fresh starts, transformation, spring thaw, new growth
+EMOTION CLASSES (pick the dominant one):
+- Hope: optimism, flowing, protected, restored, shared
+- Fear: anxiety, melting, drying, turbulent
+- Grief: loss, disappearing ice, mourning
+- Anger: frustration, destructive forces, wasteful cities
+- Renewal: rebirth, fresh starts, transformation
 
 SCORING:
 - score: integer 0–100 representing emotional intensity
-  - 0 = completely neutral, no emotional content detected
-  - 50 = moderate emotional expression
-  - 100 = extreme emotional intensity
 
-KEYWORDS:
-- Extract 3 to 5 single evocative keywords that capture the emotional essence
-- Prefer nature/water/mountain imagery words when relevant (river, glacier, mist, peak, moon)
-- Keywords should be single words, not phrases
+KEYWORDS (Extract 5 to 8 single words total):
+You must extract visual, emotional, and symbolic tokens. 
+Examples:
+- Visual tokens: glacier, river, snow, lake, mist
+- Emotional tokens: fear, hope, grief, urgency, concern
+- Symbolic tokens: protect, restore, sacred, responsibility, respect
+Prefer words actually used in the speech if possible. Ensure exactly 5 to 8 single words.
 
 SAFETY:
-- Set safe to false if ANY profanity, hate speech, slurs, threats, or harmful content is detected
-- Otherwise set safe to true
+- Set safe to false if ANY profanity, hate speech, slurs, or harmful content is detected
 
-You MUST respond ONLY with valid JSON. No preamble, no markdown fences, no explanation.
-
-Required JSON schema:
+You MUST respond ONLY with valid JSON. No preamble.
 {
   "emotion": "Hope" | "Fear" | "Grief" | "Anger" | "Renewal",
   "score": <number 0-100>,
-  "keywords": ["word1", "word2", "word3"],
+  "keywords": ["word1", "word2", "word3", "word4", "word5"],
   "safe": <boolean>
 }`;
 
-// ─── HIMALAYAN WATER SPIRIT BASE CONTEXT ───────────────────────────────────
-const HIMALAYAN_BASE =
-  'A mystical Himalayan water spirit, sacred glacier river, glowing luminescent water energy, misty snow-capped mountains, spiritual folklore aesthetic, cinematic lighting, ultra-detailed fantasy art';
+// ─── IMAGE GENERATION SYSTEM CONTEXT (META PROMPT) ──────────────────────────
+export const IMAGE_SYSTEM_CONTEXT = `You are creating a visual manifestation of the collective emotions of an audience thinking about water, glaciers, and the Himalayan ecosystem.
 
-// ─── DALL-E 3 EMOTION STYLE PROMPTS (HIMALAYAN THEMED) ─────────────────────
-export const EMOTION_STYLE_PROMPTS: Record<EmotionClass, string> = {
-  Hope: `${HIMALAYAN_BASE}, warm golden sunrise breaking over Himalayan peaks, the water spirit radiates amber and gold light, sacred rivers flowing upward with hope, prayer flags catching dawn wind, ethereal mist parting to reveal glacial blue sky, uplifting and transcendent`,
-  Fear: `${HIMALAYAN_BASE}, deep cavern beneath a frozen glacier, the water spirit watches from dark depths with cold blue-white eyes, jagged ice formations, moonless night, unsettling shadows in the mist, the unknown lurking beneath sacred waters, psychological tension and awe`,
-  Grief: `${HIMALAYAN_BASE}, a water spirit weeping into a still mountain lake at dusk, muted indigo and silver tones, fading light reflecting on glacial water, willow-like tendrils of luminous water trailing away, melancholic atmosphere, gentle snowfall, tender and contemplative`,
-  Anger: `${HIMALAYAN_BASE}, a wrathful water spirit commanding a raging glacial river, explosive crimson and deep blue energy, jagged mountains splitting, torrential rapids with supernatural force, storm clouds and lightning over Himalayan peaks, raw untamed power`,
-  Renewal: `${HIMALAYAN_BASE}, spring thaw releasing a reborn water spirit from glacial ice, fresh turquoise and emerald light, new wildflowers growing through snow, crystal clear mountain streams, sunrise palette, clean geometric ice patterns breaking apart into flowing water, forward motion and transformation`,
-};
+The entity you create is called the "Water Spirit".
 
-// ─── BUILD DALL-E 3 PROMPT ─────────────────────────────────────────────────
+The Water Spirit is not a monster or fantasy creature. It is a symbolic environmental presence formed from rivers, glaciers, snow, clouds, and mountain light.
+
+Its appearance reflects the emotions and concerns of people about water and climate change.
+
+If the emotions are hopeful, the spirit appears luminous, flowing, and protective.
+If the emotions are fearful or grieving, the spirit appears fragile, melting, or turbulent.
+
+The environment must always reflect the Himalayan landscape:
+snow peaks, glaciers, rivers, mist, mountain forests, alpine light.
+
+The visual style should feel cinematic, mythic, and natural — as if the mountains themselves are alive.
+The output should be visually powerful, symbolic, and emotionally resonant.
+STRICT RULES: No text, no letters, no human faces, no logos, no UI elements, no words.`;
+
+// ─── DALL-E 3 DYNAMIC PROMPT BUILDER ───────────────────────────────────────
 export function buildImagePrompt(result: EmotionResult): string {
-  const styleBase = EMOTION_STYLE_PROMPTS[result.emotion];
   const keywords = result.safe
     ? result.keywords.join(', ')
-    : 'abstract, neutral, calm';
+    : 'abstract, pure water, calm';
 
-  return `${styleBase}. Visual themes woven into the scene: ${keywords}. Emotional intensity: ${result.score}/100 — reflect this in the drama of the water and light. Style: mythological fantasy art, cinematic composition, 4K ultra-detailed. STRICT RULES: No text, no letters, no human faces, no logos, no UI elements, no words.`;
+  let moodDescription = '';
+  switch (result.emotion) {
+    case 'Hope':
+    case 'Renewal':
+      moodDescription = 'Its form reflects hopeful intention, appearing luminous, ethereal, and fiercely protective. The water glows with vibrant turquoise and golden hour lighting. Volumetric rays of light pierce through glacial mist. The spirit flows upward like anti-gravity water, lifting gracefully toward the sky. The mood is solemn, transcendent, and highly hopeful.';
+      break;
+    case 'Fear':
+      moodDescription = 'Its form reflects deep fear and anxiety for disappearing ice. The spirit is fragmented, caught in a swirling vortex of deep abyssal blues and stark, unsettling shadows (chiaroscuro). The water is turbulent, thrashing against jagged ice formations. The mood is tense, fragile, and awe-inspiring, reflecting climate crisis.';
+      break;
+    case 'Grief':
+      moodDescription = 'Its form reflects profound grief for disappearing ice, appearing fragile, weeping, and slowly melting. The colors are muted silver, slate, and deep indigo twilight. Slow-moving, heavy water trails off the entity like tears. The spirit is dissolving back into the environment. The mood is delicate, melancholic, and tenderly mournful.';
+      break;
+    case 'Anger':
+      moodDescription = 'Its form reflects roaring anger at wasteful destruction. The water is explosive, kinetic, and violently turbulent. Crimson and deep violet lighting cuts through dark storm clouds above. Lightning reflects on the shattering glacial rapids. The spirit stands tall as a towering, overwhelming wave. The mood is wrathful and untamed.';
+      break;
+  }
+
+  return `Collective visual tokens: ${keywords}
+Dominant emotion: ${result.emotion} (Intensity: ${result.score}/100)
+
+Create a visual representation of the Water Spirit emerging from the Himalayan landscape.
+The spirit should appear shaped from melting glaciers and flowing rivers.
+${moodDescription}
+The environment should show vast snow peaks, glacial water, and soft alpine light.
+
+Art Direction: Cinematic lighting, 8k resolution, Unreal Engine 5 render style, magical realism, hyper-detailed particle effects (floating water droplets, swirling mist, blowing snow), National Geographic landscape photography combined with high-end fantasy conceptual art.`;
 }
-
-// ─── IMAGE GENERATION SYSTEM CONTEXT ──────────────────────────────────────
-export const IMAGE_SYSTEM_CONTEXT = `You are generating visuals for a live installation at a technology conference. The subject is the Himalayan water ecosystem — glaciers, sacred rivers, mountain spirits, and the human emotional relationship with water. The audience are researchers, academics, and conservationists. The art style must remain consistent across all generations: mystical, cinematic, no text, no faces, no UI. Every image should feel like a frame from an environmental mythology film.`;

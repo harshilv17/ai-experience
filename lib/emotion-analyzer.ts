@@ -8,7 +8,7 @@ import { EMOTION_ANALYZER_SYSTEM_PROMPT } from './prompt-templates';
 const emotionSchema = z.object({
   emotion: z.enum(['Hope', 'Fear', 'Grief', 'Anger', 'Renewal']),
   score: z.number().min(0).max(100),
-  keywords: z.array(z.string()).min(3).max(5),
+  keywords: z.array(z.string()).min(3).max(8),
   safe: z.boolean(),
 });
 
