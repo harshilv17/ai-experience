@@ -27,7 +27,8 @@ export type ControlCommand =
   | 'pause'
   | 'resume'
   | 'skip'
-  | 'force_generate';
+  | 'force_generate'
+  | 'force_generate_with_prompt';
 
 // ─── PIPELINE DTOs ─────────────────────────────────────────────────────────
 
@@ -197,6 +198,11 @@ export interface AppState {
   displayStartedAt: number | null;
   pendingPromptData: { transcript: string; keywords: string[]; emotion: EmotionClass; score: number } | null;
 
+  // ─── OPERATOR OVERRIDES (editable on control panel) ────────
+  pendingImagePrompt: string;       // prompt broadcast BEFORE image generation
+  systemContextOverride: string;    // operator-editable copy of IMAGE_SYSTEM_CONTEXT
+  transcriptOverride: string;       // operator-editable copy of liveTranscript
+
   // Actions
   setOrchestratorState: (state: OrchestratorState) => void;
   setLiveMode: (live: boolean) => void;
@@ -223,4 +229,9 @@ export interface AppState {
   setPendingPromptData: (data: { transcript: string; keywords: string[]; emotion: EmotionClass; score: number } | null) => void;
   transitionToShowingPrompt: () => void;
   clearPendingPrompt: () => void;
+
+  // Operator override setters
+  setPendingImagePrompt: (p: string) => void;
+  setSystemContextOverride: (ctx: string) => void;
+  setTranscriptOverride: (t: string) => void;
 }

@@ -30,7 +30,6 @@ class ImageGenerator {
     emotion: EmotionResult,
     fallbackManager: FallbackManager
   ): Promise<ImageResult> {
-    const startTime = Date.now();
     const basePrompt = buildImagePrompt(emotion);
     const fullPrompt = `${IMAGE_SYSTEM_CONTEXT}\n\n${basePrompt}`;
 
@@ -40,6 +39,34 @@ class ImageGenerator {
       data: { prompt: fullPrompt, chunkId: emotion.chunkId },
       timestamp: Date.now(),
     });
+
+    return this._generateWithPrompt(fullPrompt, emotion.emotion, emotion.chunkId, fallbackManager);
+  }
+
+  // Operator override: generate image using a fully custom prompt string
+  async generateWithCustomPrompt(
+    customPrompt: string,
+    fallbackManager: FallbackManager,
+    broker: typeof sseBroker
+  ): Promise<ImageResult> {
+    const chunkId = `operator_${Date.now()}`;
+
+    broker.broadcast({
+      type: 'prompt_ready',
+      data: { prompt: customPrompt, chunkId },
+      timestamp: Date.now(),
+    });
+
+    return this._generateWithPrompt(customPrompt, 'Renewal', chunkId, fallbackManager);
+  }
+
+  private async _generateWithPrompt(
+    fullPrompt: string,
+    emotion: EmotionResult['emotion'],
+    chunkId: string,
+    fallbackManager: FallbackManager
+  ): Promise<ImageResult> {
+    const startTime = Date.now();
 
     // ─── RATE LIMIT LOGIC ──────────────────────────────────
     const timeSinceLast = Date.now() - this.lastGenTime;
@@ -71,7 +98,7 @@ class ImageGenerator {
         }
 
         // Download and cache locally
-        const filename = `img_${emotion.chunkId}_${Date.now()}.png`;
+        const filename = `img_${chunkId}_${Date.now()}.png`;
         const localPath = path.join(this.cacheDir, filename);
         await this.downloadImage(remoteUrl, localPath);
 
@@ -83,9 +110,9 @@ class ImageGenerator {
           localPath,
           servedPath: `/api/image/${filename}`,
           prompt: fullPrompt,
-          emotion: emotion.emotion,
+          emotion,
           isFallback: false,
-          chunkId: emotion.chunkId,
+          chunkId,
           latencyMs,
         };
       } catch (error: unknown) {
@@ -106,12 +133,12 @@ class ImageGenerator {
       lastError instanceof Error ? lastError.message : lastError
     );
 
-    const fallbackPath = fallbackManager.getPoolImage(emotion.emotion);
+    const fallbackPath = fallbackManager.getPoolImage(emotion);
     if (!fallbackPath) {
       throw {
         code: 'NO_FALLBACK_AVAILABLE',
         message: 'All generation retries exhausted and no fallback images available',
-        chunkId: emotion.chunkId,
+        chunkId,
       };
     }
 
@@ -129,12 +156,13 @@ class ImageGenerator {
       localPath: fallbackPath,
       servedPath,
       prompt: fullPrompt,
-      emotion: emotion.emotion,
+      emotion,
       isFallback: true,
-      chunkId: emotion.chunkId,
+      chunkId,
       latencyMs,
     };
   }
+
 
   private async downloadImage(url: string, destPath: string): Promise<void> {
     const response = await fetch(url);

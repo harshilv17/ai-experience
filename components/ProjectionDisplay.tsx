@@ -80,7 +80,14 @@ export default function ProjectionDisplay() {
     prevPhaseRef.current = pipelinePhase;
   }, [pipelinePhase, fadeOutImages]);
 
-  const showImage = pipelinePhase === 'revealing' || pipelinePhase === 'displaying';
+  // Also fade out when currentImagePath is cleared
+  useEffect(() => {
+    if (!currentImagePath && prevImageRef.current) {
+      fadeOutImages();
+    }
+  }, [currentImagePath, fadeOutImages]);
+
+  const showImage = (pipelinePhase === 'revealing' || pipelinePhase === 'displaying') && !!currentImagePath;
   const isIdle = pipelinePhase === 'idle';
   const isProcessing = pipelinePhase === 'processing' || pipelinePhase === 'listening';
 

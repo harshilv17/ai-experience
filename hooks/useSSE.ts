@@ -36,6 +36,7 @@ export function useSSE() {
   const addSessionKeywords = useAppStore((s) => s.addSessionKeywords);
   const setPoeticLine = useAppStore((s) => s.setPoeticLine);
   const setLiveEmotionJSON = useAppStore((s) => s.setLiveEmotionJSON);
+  const setPendingImagePrompt = useAppStore((s) => s.setPendingImagePrompt);
 
   useEffect(() => {
     function connect() {
@@ -119,14 +120,21 @@ export function useSSE() {
             case 'image_ready': {
               const data = sysEvent.data as ImageReadyEvent;
               setCurrentImage(data.servedPath, data.emotion, data.isFallback);
+              // Move pending prompt to the liveImagePrompt (it's now the last-used prompt)
+              const pendingPrompt = useAppStore.getState().pendingImagePrompt;
+              if (pendingPrompt) {
+                setLiveImagePrompt(pendingPrompt);
+                setPendingImagePrompt('');
+              }
               // V2: Clear emotion JSON ticker when image arrives
               setTimeout(() => setLiveEmotionJSON(null), 3000);
               break;
             }
             case 'prompt_ready': {
-              // V2: DALL-E 3 prompt broadcast
+              // V2: DALL-E 3 prompt broadcast — shown BEFORE image generation
               const data = sysEvent.data as PromptReadyEvent;
-              setLiveImagePrompt(data.prompt);
+              // Set as pending (pre-generation) — liveImagePrompt gets set once image_ready arrives
+              setPendingImagePrompt(data.prompt);
               break;
             }
             case 'poetic_moment': {

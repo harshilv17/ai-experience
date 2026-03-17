@@ -30,6 +30,59 @@ const STATUS_DOTS: Record<string, string> = {
   no_api_key: '✖',
 };
 
+// ─── Reusable editable card component (always-editable) ──────────────────────
+function EditableCard({
+  title,
+  titleColor = 'text-gray-400',
+  borderColor = 'border-gray-800',
+  textColor = 'text-gray-300',
+  value,
+  placeholder,
+  badge,
+  onSave,
+  extraActions,
+  height = 'h-32',
+}: {
+  title: string;
+  titleColor?: string;
+  borderColor?: string;
+  textColor?: string;
+  value: string;
+  placeholder: string;
+  badge?: React.ReactNode;
+  onSave?: (newValue: string) => void;
+  extraActions?: (value: string) => React.ReactNode;
+  height?: string;
+}) {
+  return (
+    <div className={`bg-gray-900 rounded-xl p-4 border ${borderColor}`}>
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <h2 className={`text-sm font-semibold uppercase tracking-wider ${titleColor}`}>
+            {title}
+          </h2>
+          {badge}
+        </div>
+      </div>
+
+      <textarea
+        className={`w-full bg-black/50 ${textColor} font-mono text-xs leading-relaxed rounded-lg p-3 ${height} border border-gray-800/50 hover:border-gray-600 focus:border-indigo-500 focus:outline-none resize-none transition-colors`}
+        value={value}
+        placeholder={placeholder}
+        onChange={(e) => onSave?.(e.target.value)}
+      />
+
+      {/* Extra action buttons */}
+      {extraActions && (
+        <div className="mt-2">
+          {extraActions(value)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
 export default function ControlPanel() {
   const state = useAppStore((s) => s.orchestratorState);
   const liveMode = useAppStore((s) => s.liveMode);
@@ -45,28 +98,27 @@ export default function ControlPanel() {
   // V2 store additions
   const liveTranscript = useAppStore((s) => s.liveTranscript);
   const liveImagePrompt = useAppStore((s) => s.liveImagePrompt);
+  const pendingImagePrompt = useAppStore((s) => s.pendingImagePrompt);
   const emotionHistory = useAppStore((s) => s.emotionHistory);
+
+  // Operator override setters
+  const setTranscriptOverride = useAppStore((s) => s.setTranscriptOverride);
+  const setSystemContextOverride = useAppStore((s) => s.setSystemContextOverride);
+  const setPendingImagePrompt = useAppStore((s) => s.setPendingImagePrompt);
+  const setLiveImagePrompt = useAppStore((s) => s.setLiveImagePrompt);
+  const systemContextOverride = useAppStore((s) => s.systemContextOverride);
 
   const [isLoading, setIsLoading] = useState(false);
   const [healthResults, setHealthResults] = useState<Record<string, string> | null>(null);
   const [sseConnected] = useState(true);
-  const [copiedPrompt, setCopiedPrompt] = useState(false);
 
-  const copyPrompt = useCallback(() => {
-    if (liveImagePrompt) {
-      navigator.clipboard.writeText(liveImagePrompt);
-      setCopiedPrompt(true);
-      setTimeout(() => setCopiedPrompt(false), 2000);
-    }
-  }, [liveImagePrompt]);
-
-  const sendCommand = useCallback(async (cmd: ControlCommand) => {
+  const sendCommand = useCallback(async (cmd: ControlCommand, extra?: Record<string, unknown>) => {
     setIsLoading(true);
     try {
       const res = await fetch('/api/control', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cmd }),
+        body: JSON.stringify({ cmd, ...extra }),
       });
       const data = await res.json();
       console.log(`[Control] ${cmd}:`, data);
@@ -90,6 +142,16 @@ export default function ControlPanel() {
       setIsLoading(false);
     }
   }, []);
+
+  const handleGenerateWithPrompt = useCallback(async (prompt: string) => {
+    if (!prompt.trim()) return;
+    setIsLoading(true);
+    try {
+      await sendCommand('force_generate_with_prompt', { prompt });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [sendCommand]);
 
   const stateColors: Record<string, string> = {
     idle: 'text-gray-400',
@@ -266,54 +328,96 @@ export default function ControlPanel() {
         )}
       </div>
 
-      {/* ─── V2: LIVE TRANSCRIPT, PROMPT, & EMOTION TIMELINE ───────── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* CARD A — Live Transcript */}
-        <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 transition-colors duration-300">
-          <div className="flex items-center gap-2 mb-3">
-            <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">
-              Latest Transcript
-            </h2>
-            <div className={`w-2 h-2 rounded-full bg-emerald-400 animate-pulse ${liveTranscript ? 'opacity-100' : 'opacity-0'}`} />
-          </div>
-          <div className="bg-black/50 rounded-lg p-3 h-32 overflow-y-auto border border-sky-900/30">
-            {liveTranscript ? (
-              <p className="text-gray-400 italic font-mono text-xs leading-relaxed">
-                &quot;{liveTranscript}&quot;
-              </p>
-            ) : (
-              <p className="text-gray-600 italic text-xs">Waiting for speech...</p>
-            )}
-          </div>
-        </div>
+      {/* ─── EDITABLE PIPELINE FIELDS ──────────────────────────────── */}
+      <div className="space-y-4">
+        <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider px-1">
+          Pipeline Inspector &amp; Overrides
+        </h2>
 
-        {/* CARD B — DALL-E 3 Prompt */}
-        <div className="bg-gray-900 rounded-xl p-4 border border-indigo-900/50">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-semibold text-indigo-400 uppercase tracking-wider">
-              Last Image Prompt
-            </h2>
-            <button
-              onClick={copyPrompt}
-              disabled={!liveImagePrompt}
-              className="text-xs bg-indigo-900/50 hover:bg-indigo-800 text-indigo-200 px-2 py-1 rounded transition-colors disabled:opacity-30"
-            >
-              {copiedPrompt ? '✓ Copied' : 'Copy'}
-            </button>
-          </div>
-          <div className="bg-black/50 rounded-lg p-3 h-32 overflow-y-auto border border-indigo-900/30">
-            {liveImagePrompt ? (
-              <p className="text-indigo-200/70 font-mono text-xs leading-relaxed">
-                {liveImagePrompt}
-              </p>
-            ) : (
-              <p className="text-indigo-900/50 italic text-xs">Waiting for prompt generation...</p>
-            )}
-          </div>
-        </div>
+        {/* CARD 1 — Latest Transcript (editable) */}
+        <EditableCard
+          title="Latest Transcript"
+          titleColor="text-sky-400"
+          borderColor="border-sky-900/40"
+          textColor="text-gray-300 italic"
+          value={liveTranscript}
+          placeholder="Waiting for speech..."
+          badge={
+            liveTranscript ? (
+              <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            ) : null
+          }
+          onSave={(val) => setTranscriptOverride(val)}
+          height="h-28"
+        />
+
+        {/* CARD 2 — System Context (editable) */}
+        <EditableCard
+          title="System Context"
+          titleColor="text-violet-400"
+          borderColor="border-violet-900/40"
+          textColor="text-violet-200/80"
+          value={systemContextOverride}
+          placeholder="System context not set."
+          onSave={(val) => setSystemContextOverride(val)}
+          height="h-36"
+        />
+
+        {/* CARD 3 — Pending Image Prompt (shown BEFORE image generation) */}
+        <EditableCard
+          title="Pending Image Prompt"
+          titleColor="text-amber-400"
+          borderColor={pendingImagePrompt ? 'border-amber-600/60' : 'border-amber-900/30'}
+          textColor="text-amber-200/80"
+          value={pendingImagePrompt}
+          placeholder="Waiting for next cycle to start..."
+          badge={
+            pendingImagePrompt ? (
+              <span className="text-xs bg-amber-500/20 text-amber-400 border border-amber-500/40 px-2 py-0.5 rounded-full animate-pulse">
+                ⏳ Awaiting generation
+              </span>
+            ) : null
+          }
+          onSave={(val) => setPendingImagePrompt(val)}
+          height="h-40"
+          extraActions={(currentVal) =>
+            currentVal.trim() ? (
+              <button
+                onClick={() => handleGenerateWithPrompt(currentVal)}
+                disabled={isLoading}
+                className="w-full mt-1 bg-amber-700 hover:bg-amber-600 text-white text-sm py-2 px-4 rounded-lg transition-colors disabled:opacity-40 font-medium"
+              >
+                {isLoading ? '⏳ Generating...' : '🎨 Generate with this Prompt'}
+              </button>
+            ) : null
+          }
+        />
+
+        {/* CARD 4 — Last Image Prompt (post-generation, also editable) */}
+        <EditableCard
+          title="Last Image Prompt"
+          titleColor="text-indigo-400"
+          borderColor="border-indigo-900/50"
+          textColor="text-indigo-200/70"
+          value={liveImagePrompt}
+          placeholder="Waiting for prompt generation..."
+          onSave={(val) => setLiveImagePrompt(val)}
+          height="h-40"
+          extraActions={(currentVal) =>
+            currentVal.trim() ? (
+              <button
+                onClick={() => handleGenerateWithPrompt(currentVal)}
+                disabled={isLoading}
+                className="w-full mt-1 bg-indigo-700 hover:bg-indigo-600 text-white text-sm py-2 px-4 rounded-lg transition-colors disabled:opacity-40 font-medium"
+              >
+                {isLoading ? '⏳ Generating...' : '🎨 Regenerate with this Prompt'}
+              </button>
+            ) : null
+          }
+        />
       </div>
 
-      {/* CARD C — Emotion Timeline */}
+      {/* ─── V2: EMOTION TIMELINE ──────────────────────────────────── */}
       <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 overflow-hidden">
         <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">
           Emotion Arc

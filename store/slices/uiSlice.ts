@@ -1,5 +1,6 @@
 import { StateCreator } from 'zustand';
 import type { AppState, PipelinePhase, EmotionClass } from '@/types';
+import { IMAGE_SYSTEM_CONTEXT } from '@/lib/prompt-templates';
 
 export interface UiSlice {
   pipelinePhase: PipelinePhase;
@@ -15,6 +16,11 @@ export interface UiSlice {
   poeticLine: string | null;
   liveEmotionJSON: string | null;
 
+  // Operator override fields (editable on the control panel)
+  pendingImagePrompt: string;       // prompt broadcast BEFORE image generation
+  systemContextOverride: string;    // operator-editable copy of IMAGE_SYSTEM_CONTEXT
+  transcriptOverride: string;       // operator-editable copy of liveTranscript
+
   setPipelinePhase: (phase: PipelinePhase) => void;
   setCurrentImage: (path: string, emotion: EmotionClass, isFallback: boolean) => void;
   setCurrentEmotion: (emotion: EmotionClass, score: number, keywords: string[]) => void;
@@ -24,6 +30,10 @@ export interface UiSlice {
   setLiveImagePrompt: (p: string) => void;
   setPoeticLine: (line: string | null) => void;
   setLiveEmotionJSON: (json: string | null) => void;
+
+  setPendingImagePrompt: (p: string) => void;
+  setSystemContextOverride: (ctx: string) => void;
+  setTranscriptOverride: (t: string) => void;
 
   displayStartedAt: number | null;
   pendingPromptData: { transcript: string; keywords: string[]; emotion: EmotionClass; score: number } | null;
@@ -36,7 +46,7 @@ export interface UiSlice {
 }
 
 const OVERLAY_DURATION_MS = parseInt(process.env.NEXT_PUBLIC_OVERLAY_DURATION_MS || '5000', 10);
-const IMAGE_DISPLAY_DURATION_MS = 18000;
+const IMAGE_DISPLAY_DURATION_MS = 20000;
 export const DISPLAY_HOLD_MS = 10000;
 
 let displayTimer: ReturnType<typeof setTimeout> | null = null;
@@ -58,6 +68,10 @@ export const createUiSlice: StateCreator<AppState, [], [], UiSlice> = (set) => (
   liveEmotionJSON: null,
   displayStartedAt: null,
   pendingPromptData: null,
+
+  pendingImagePrompt: '',
+  systemContextOverride: IMAGE_SYSTEM_CONTEXT,
+  transcriptOverride: '',
 
   setPipelinePhase: (phase) => set({ pipelinePhase: phase }),
 
@@ -86,8 +100,10 @@ export const createUiSlice: StateCreator<AppState, [], [], UiSlice> = (set) => (
     displayTimer = setTimeout(() => {
       set({
         pipelinePhase: 'idle',
+        currentImagePath: null,
         floatingKeywords: [],
         showOverlay: false,
+        displayStartedAt: null,
       });
     }, IMAGE_DISPLAY_DURATION_MS);
   },
@@ -116,6 +132,10 @@ export const createUiSlice: StateCreator<AppState, [], [], UiSlice> = (set) => (
   setLiveImagePrompt: (p) => set({ liveImagePrompt: p }),
   setPoeticLine: (line) => set({ poeticLine: line }),
   setLiveEmotionJSON: (json) => set({ liveEmotionJSON: json }),
+
+  setPendingImagePrompt: (p) => set({ pendingImagePrompt: p }),
+  setSystemContextOverride: (ctx) => set({ systemContextOverride: ctx }),
+  setTranscriptOverride: (t) => set({ transcriptOverride: t }),
 
   setDisplayStartedAt: (ts) => set({ displayStartedAt: ts }),
   clearDisplayStartedAt: () => set({ displayStartedAt: null }),
