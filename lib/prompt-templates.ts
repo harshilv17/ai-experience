@@ -19,12 +19,15 @@ SCORING:
 - score: integer 0–100 representing emotional intensity
 
 KEYWORDS (Extract 5 to 8 single words total):
-You must extract visual, emotional, and symbolic tokens. 
-Examples:
-- Visual tokens: glacier, river, snow, lake, mist
-- Emotional tokens: fear, hope, grief, urgency, concern
-- Symbolic tokens: protect, restore, sacred, responsibility, respect
-Prefer words actually used in the speech if possible. Ensure exactly 5 to 8 single words.
+CRITICAL: At least 4 keywords MUST be exact words spoken in the transcript. Do NOT invent generic words like "fresh", "open", "new", "hope", "change" unless the speaker literally said them.
+Extract the most interesting, specific, and vivid nouns, verbs, and adjectives from the speech.
+Priority order:
+1. Unique nouns the speaker used (glacier, river, grandmother, village, ceremony, etc.)
+2. Vivid verbs (melting, flowing, crumbling, protecting, etc.)
+3. Descriptive adjectives (sacred, ancient, turbulent, fragile, etc.)
+4. Only if needed, add 1-2 emotional/symbolic tokens
+Do NOT use generic filler words. Every keyword should feel specific to what the speaker actually said.
+Ensure exactly 5 to 8 single words.
 
 SAFETY:
 - Set safe to false if ANY profanity, hate speech, slurs, or harmful content is detected
@@ -57,10 +60,15 @@ The output should be visually powerful, symbolic, and emotionally resonant.
 STRICT RULES: No text, no letters, no human faces, no logos, no UI elements, no words.`;
 
 // ─── DALL-E 3 DYNAMIC PROMPT BUILDER ───────────────────────────────────────
-export function buildImagePrompt(result: EmotionResult): string {
+export function buildImagePrompt(result: EmotionResult, transcript?: string): string {
   const keywords = result.safe
     ? result.keywords.join(', ')
     : 'abstract, pure water, calm';
+
+  // Include a condensed version of the transcript (max 200 chars) for context
+  const speechContext = transcript && result.safe
+    ? transcript.slice(0, 200).trim()
+    : '';
 
   let moodDescription = '';
   switch (result.emotion) {
@@ -81,7 +89,7 @@ export function buildImagePrompt(result: EmotionResult): string {
 
   return `Collective visual tokens: ${keywords}
 Dominant emotion: ${result.emotion} (Intensity: ${result.score}/100)
-
+${speechContext ? `\nAudience voice (verbatim): "${speechContext}"\n` : ''}
 Create a visual representation of the Water Spirit emerging from the Himalayan landscape.
 The spirit should appear shaped from melting glaciers and flowing rivers.
 ${moodDescription}

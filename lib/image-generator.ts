@@ -28,9 +28,10 @@ class ImageGenerator {
 
   async generate(
     emotion: EmotionResult,
-    fallbackManager: FallbackManager
+    fallbackManager: FallbackManager,
+    transcript?: string
   ): Promise<ImageResult> {
-    const basePrompt = buildImagePrompt(emotion);
+    const basePrompt = buildImagePrompt(emotion, transcript);
     const fullPrompt = `${IMAGE_SYSTEM_CONTEXT}\n\n${basePrompt}`;
 
     // V2: Broadcast prompt_ready before calling DALL-E API (Section 4)

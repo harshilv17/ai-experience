@@ -238,7 +238,7 @@ class ChunkOrchestrator {
     // ─── STEP C: Image Generation ───────────────────────────────────────
     let imageResult;
     try {
-      imageResult = await imageGenerator.generate(emotionResult, fallbackManager);
+      imageResult = await imageGenerator.generate(emotionResult, fallbackManager, transcript.text);
       this.apiStatus.dalle3 = imageResult.isFallback ? this.apiStatus.dalle3 : 'ok';
       apiLatencies.dalle3 = imageResult.latencyMs;
 
@@ -378,7 +378,7 @@ class ChunkOrchestrator {
     const emotion = lastEmotion ?? this.lastEmotion ?? {
       emotion: 'Renewal' as const,
       score: 50,
-      keywords: ['fresh', 'open', 'new'],
+      keywords: ['glacier', 'mountain', 'flowing', 'sacred', 'water'],
       safe: true,
       chunkId: uuidv4(),
       latencyMs: 0,

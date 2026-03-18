@@ -53,7 +53,73 @@ let displayTimer: ReturnType<typeof setTimeout> | null = null;
 let revealTimer: ReturnType<typeof setTimeout> | null = null;
 let overlayTimer: ReturnType<typeof setTimeout> | null = null;
 
-export const createUiSlice: StateCreator<AppState, [], [], UiSlice> = (set) => ({
+// ── Client-side transcript word extraction ──────────────────────────────
+const STOPWORDS = new Set([
+  'the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been', 'being',
+  'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could',
+  'should', 'may', 'might', 'shall', 'can', 'need', 'must', 'and', 'but',
+  'or', 'nor', 'not', 'so', 'yet', 'both', 'either', 'neither', 'each',
+  'every', 'all', 'any', 'few', 'more', 'most', 'other', 'some', 'such',
+  'no', 'only', 'own', 'same', 'than', 'too', 'very', 'just', 'because',
+  'as', 'until', 'while', 'of', 'at', 'by', 'for', 'with', 'about',
+  'against', 'between', 'through', 'during', 'before', 'after', 'above',
+  'below', 'to', 'from', 'up', 'down', 'in', 'out', 'on', 'off', 'over',
+  'under', 'again', 'further', 'then', 'once', 'here', 'there', 'when',
+  'where', 'why', 'how', 'what', 'which', 'who', 'whom', 'this', 'that',
+  'these', 'those', 'i', 'me', 'my', 'myself', 'we', 'our', 'ours',
+  'you', 'your', 'yours', 'he', 'him', 'his', 'she', 'her', 'hers',
+  'it', 'its', 'they', 'them', 'their', 'theirs', 'also', 'like', 'think',
+  'know', 'really', 'much', 'well', 'even', 'back', 'still', 'way',
+  'get', 'got', 'going', 'make', 'made', 'come', 'came', 'take', 'took',
+  'say', 'said', 'tell', 'told', 'see', 'seen', 'look', 'thing', 'things',
+  'yeah', 'okay', 'right', 'yes', 'uh', 'um', 'oh', 'ah', 'hmm',
+  'new', 'open', 'fresh', 'change', 'hope', 'feel', 'feeling',
+]);
+
+/** Extract meaningful words from transcript text (nouns, vivid verbs, adjectives) */
+function extractTranscriptWords(text: string, maxCount: number): string[] {
+  if (!text || text.length < 10) return [];
+  const words = text
+    .toLowerCase()
+    .replace(/[^a-z\s'-]/g, '')
+    .split(/\s+/)
+    .filter((w) => w.length >= 4 && !STOPWORDS.has(w));
+
+  // Deduplicate and pick the longest/most interesting words
+  const unique = Array.from(new Set(words));
+  unique.sort((a, b) => b.length - a.length); // prefer longer words (more specific)
+  return unique.slice(0, maxCount);
+}
+
+/** Merge GPT keywords with transcript-extracted words, deduplicating */
+function mergeKeywords(gptKeywords: string[], transcriptWords: string[], maxTotal: number): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+
+  // GPT keywords first (they're already curated)
+  for (const kw of gptKeywords) {
+    const lower = kw.toLowerCase();
+    if (!seen.has(lower) && !STOPWORDS.has(lower)) {
+      seen.add(lower);
+      result.push(kw);
+    }
+  }
+
+  // Then fill with transcript words
+  for (const tw of transcriptWords) {
+    if (result.length >= maxTotal) break;
+    const lower = tw.toLowerCase();
+    if (!seen.has(lower)) {
+      seen.add(lower);
+      // Capitalize first letter for display consistency
+      result.push(tw.charAt(0).toUpperCase() + tw.slice(1));
+    }
+  }
+
+  return result.slice(0, maxTotal);
+}
+
+export const createUiSlice: StateCreator<AppState, [], [], UiSlice> = (set, get) => ({
   pipelinePhase: 'idle',
   currentImagePath: null,
   currentEmotion: null,
@@ -109,20 +175,30 @@ export const createUiSlice: StateCreator<AppState, [], [], UiSlice> = (set) => (
   },
 
   setCurrentEmotion: (emotion, score, keywords) => {
+    // Merge GPT keywords with words extracted from the live transcript
+    const state = get();
+    const transcript = state.liveTranscript || state.currentTranscript || '';
+    const transcriptWords = extractTranscriptWords(transcript, 4);
+    const merged = mergeKeywords(keywords, transcriptWords, 8);
+
     set({
       currentEmotion: emotion,
       currentScore: score,
-      currentKeywords: keywords,
-      floatingKeywords: keywords,
+      currentKeywords: merged,
+      floatingKeywords: merged,
       pipelinePhase: 'processing',
       showOverlay: true,
     });
   },
 
   setTranscript: (text, words) => {
+    // Supplement server-provided words with client-side extraction
+    const transcriptWords = extractTranscriptWords(text, 4);
+    const merged = mergeKeywords(words, transcriptWords, 8);
+
     set({
       currentTranscript: text,
-      floatingKeywords: words,
+      floatingKeywords: merged,
       pipelinePhase: 'processing',
     });
   },

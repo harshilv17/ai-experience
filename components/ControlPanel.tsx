@@ -85,6 +85,7 @@ function EditableCard({
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function ControlPanel() {
   const state = useAppStore((s) => s.orchestratorState);
+  const phase = useAppStore((s) => s.pipelinePhase);
   const liveMode = useAppStore((s) => s.liveMode);
   const testMode = useAppStore((s) => s.testMode);
   const setTestMode = useAppStore((s) => s.setTestMode);
@@ -97,6 +98,7 @@ export default function ControlPanel() {
 
   // V2 store additions
   const liveTranscript = useAppStore((s) => s.liveTranscript);
+  const poeticLine = useAppStore((s) => s.poeticLine);
   const liveImagePrompt = useAppStore((s) => s.liveImagePrompt);
   const pendingImagePrompt = useAppStore((s) => s.pendingImagePrompt);
   const emotionHistory = useAppStore((s) => s.emotionHistory);
@@ -283,6 +285,55 @@ export default function ControlPanel() {
             🧪 TEST MODE ACTIVE — auto-cycling emotions with predefined transcripts
           </div>
         )}
+      </div>
+
+      {/* ─── LIVE AUDIENCE SPEECH ──────────────────────────────────── */}
+      <div className="bg-gray-900 rounded-xl p-5 border border-amber-900/40 relative overflow-hidden shadow-lg shadow-amber-900/10">
+        {/* Animated background glow when listening/processing */}
+        {(phase === 'listening' || state === 'processing') && (
+          <div className="absolute inset-0 bg-amber-500/5 animate-pulse" />
+        )}
+        
+        <div className="relative z-10">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-semibold text-amber-400 uppercase tracking-wider flex items-center gap-2">
+              <span className="relative flex h-3 w-3">
+                {(phase === 'listening' || state === 'processing') && (
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                )}
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
+              </span>
+              Live Audience Speech
+            </h2>
+          </div>
+
+          <div className="min-h-[80px] bg-black/40 rounded-lg p-4 border border-gray-800">
+            {liveTranscript ? (
+              <p className="text-lg text-amber-100/90 leading-relaxed font-light italic">
+                "{liveTranscript}"
+                {(phase === 'listening' || state === 'processing') && (
+                  <span className="inline-block w-2 h-5 bg-amber-400 ml-2 align-middle animate-pulse" />
+                )}
+              </p>
+            ) : (
+              <p className="text-gray-500 text-sm italic flex items-center gap-2">
+                Waiting for audience input...
+                <span className="flex gap-1">
+                  {[0, 0.15, 0.3].map((d, i) => (
+                    <span key={i} className="w-1 h-1 rounded-full bg-gray-500 animate-bounce" style={{ animationDelay: `${d}s` }} />
+                  ))}
+                </span>
+              </p>
+            )}
+          </div>
+          
+          {poeticLine && (
+            <div className="mt-3 bg-indigo-900/20 border border-indigo-500/30 rounded-lg p-3">
+              <span className="text-xs uppercase tracking-widest text-indigo-400 mb-1 block">Poetic Moment Detected</span>
+              <p className="text-sm text-indigo-200 indent-4 font-serif italic text-balance">{poeticLine}</p>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* ─── CURRENT STATE ─────────────────────────────────────────── */}
