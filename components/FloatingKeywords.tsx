@@ -29,9 +29,8 @@ export default function FloatingKeywords({ words, gathering = false, phase }: Pr
   const [visibleBubbles, setVisibleBubbles] = useState<FloatingBubble[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const variants: Array<'warm' | 'cool' | 'gold'> = ['warm', 'cool', 'gold'];
-
   const bubbleData = useMemo(() => {
+    const variants: Array<'warm' | 'cool' | 'gold'> = ['warm', 'cool', 'gold'];
     return words.map((text, i) => {
       const variant = variants[i % 3];
       const textLen = text.length;

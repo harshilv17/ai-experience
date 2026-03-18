@@ -310,7 +310,7 @@ export default function ControlPanel() {
           <div className="min-h-[80px] bg-black/40 rounded-lg p-4 border border-gray-800">
             {liveTranscript ? (
               <p className="text-lg text-amber-100/90 leading-relaxed font-light italic">
-                "{liveTranscript}"
+                &quot;{liveTranscript}&quot;
                 {(phase === 'listening' || state === 'processing') && (
                   <span className="inline-block w-2 h-5 bg-amber-400 ml-2 align-middle animate-pulse" />
                 )}

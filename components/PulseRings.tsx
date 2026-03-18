@@ -11,8 +11,6 @@ interface Props {
 export default memo(function PulseRings({ phase }: Props) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
-
-  const isIdle = phase === 'idle';
   const isListening = phase === 'listening';
   const isProcessing = phase === 'processing' || phase === 'showing_prompt';
   const isRevealing = phase === 'revealing';

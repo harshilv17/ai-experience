@@ -40,7 +40,6 @@ export default memo(function ParticleField({ phase }: Props) {
     setIsMounted(true);
   }, []);
 
-  const isIdle = phase === 'idle';
   const isListening = phase === 'listening';
   const isProcessing = phase === 'processing' || phase === 'showing_prompt';
   const isRevealing = phase === 'revealing';
