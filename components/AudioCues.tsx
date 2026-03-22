@@ -8,6 +8,7 @@ export default memo(function AudioCues() {
   const phase = useAppStore((s) => s.pipelinePhase);
   const prevPhaseRef = useRef(phase);
   const audioCtxRef = useRef<AudioContext | null>(null);
+  const ambientAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const getAudioCtx = useCallback(() => {
     if (!audioCtxRef.current) {
@@ -102,6 +103,41 @@ export default memo(function AudioCues() {
       // Silently fail
     }
   }, [getAudioCtx]);
+
+  // Setup ambient background audio
+  useEffect(() => {
+    const audio = new Audio('/ambient.mp3');
+    audio.loop = true;
+    audio.volume = 0.25; // Warm, subtle background level
+    ambientAudioRef.current = audio;
+
+    return () => {
+      audio.pause();
+      audio.src = '';
+    };
+  }, []);
+
+  // Control ambient audio based on pipeline phase
+  useEffect(() => {
+    const audio = ambientAudioRef.current;
+    if (!audio) return;
+
+    // Play while system is actively working (listening through generation), stop when displayed or idle
+    const shouldPlay = ['listening', 'processing', 'showing_prompt', 'revealing'].includes(phase);
+
+    if (shouldPlay) {
+      if (audio.paused) {
+        audio.play().catch(err => {
+          console.warn('[AudioCues] Ambient audio autoplay blocked by browser policy:', err);
+        });
+      }
+    } else {
+      if (!audio.paused) {
+        audio.pause();
+        audio.currentTime = 0; // reset for next time
+      }
+    }
+  }, [phase]);
 
   useEffect(() => {
     const prev = prevPhaseRef.current;
