@@ -17,12 +17,14 @@ const VALID_COMMANDS: ControlCommand[] = [
   'skip',
   'force_generate',
   'force_generate_with_prompt',
+  'conference_start',
+  'conference_stop',
 ];
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { cmd, prompt } = body as { cmd: ControlCommand; prompt?: string };
+    const { cmd, prompt, outputType } = body as { cmd: ControlCommand; prompt?: string; outputType?: 'image' | 'video' };
 
     if (!cmd || !VALID_COMMANDS.includes(cmd)) {
       return NextResponse.json(
@@ -75,6 +77,18 @@ export async function POST(req: Request) {
           timestamp: Date.now(),
         });
         return NextResponse.json({ ok: true, result });
+      }
+      case 'conference_start':
+        // Client drives the audio capture; just acknowledge
+        console.log('[Control] Conference mode started');
+        break;
+      case 'conference_stop': {
+        const type = outputType === 'video' ? 'video' : 'image';
+        // Fire-and-forget: let it run without holding the HTTP response
+        orchestrator.generateConferenceResult(type).catch((err) =>
+          console.error('[Control] Conference generate error:', err)
+        );
+        return NextResponse.json({ ok: true, status: 'generating', outputType: type });
       }
     }
 

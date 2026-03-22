@@ -4,7 +4,7 @@
 import { useState, useCallback } from 'react';
 import { useAppStore } from '@/store/appStore';
 import MicPicker from './MicPicker';
-import type { ControlCommand } from '@/types';
+import type { ControlCommand, CaptureMode, GenerationOutputType } from '@/types';
 
 const EMOTION_BADGE_COLORS: Record<string, string> = {
   Hope: 'bg-[#FDE047] shadow-[#FDE047]/60 text-black',
@@ -110,6 +110,18 @@ export default function ControlPanel() {
   const setLiveImagePrompt = useAppStore((s) => s.setLiveImagePrompt);
   const systemContextOverride = useAppStore((s) => s.systemContextOverride);
 
+  // Conference mode state + actions
+  const captureMode = useAppStore((s) => s.captureMode);
+  const generationOutputType = useAppStore((s) => s.generationOutputType);
+  const isConferenceListening = useAppStore((s) => s.isConferenceListening);
+  const conferenceIsGenerating = useAppStore((s) => s.conferenceIsGenerating);
+  const conferenceTranscriptBuffer = useAppStore((s) => s.conferenceTranscriptBuffer);
+  const setCaptureMode = useAppStore((s) => s.setCaptureMode);
+  const setGenerationOutputType = useAppStore((s) => s.setGenerationOutputType);
+  const setConferenceListening = useAppStore((s) => s.setConferenceListening);
+  const clearConferenceTranscript = useAppStore((s) => s.clearConferenceTranscript);
+  const clearWordPool = useAppStore((s) => s.clearWordPool);
+
   const [isLoading, setIsLoading] = useState(false);
   const [healthResults, setHealthResults] = useState<Record<string, string> | null>(null);
   const [sseConnected] = useState(true);
@@ -154,6 +166,24 @@ export default function ControlPanel() {
       setIsLoading(false);
     }
   }, [sendCommand]);
+
+  const handleConferenceStart = useCallback(async () => {
+    setConferenceListening(true);
+    await sendCommand('conference_start');
+  }, [sendCommand, setConferenceListening]);
+
+  const handleConferenceStop = useCallback(async () => {
+    setConferenceListening(false);
+    await sendCommand('conference_stop', { outputType: generationOutputType });
+  }, [sendCommand, generationOutputType, setConferenceListening]);
+
+  const handleCaptureModeSwitch = useCallback((mode: CaptureMode) => {
+    // Stop conference if switching away
+    if (isConferenceListening) setConferenceListening(false);
+    clearConferenceTranscript();
+    clearWordPool();
+    setCaptureMode(mode);
+  }, [isConferenceListening, setConferenceListening, clearConferenceTranscript, clearWordPool, setCaptureMode]);
 
   const stateColors: Record<string, string> = {
     idle: 'text-gray-400',
@@ -224,22 +254,106 @@ export default function ControlPanel() {
           Controls
         </h2>
 
-        {/* Live toggle — large and prominent */}
-        <div className="mb-4">
-          <button
-            onClick={() => sendCommand(liveMode ? 'live_off' : 'live_on')}
-            disabled={isLoading}
-            className={`
-              w-full py-4 rounded-xl text-lg font-bold tracking-wider transition-all
-              ${liveMode
-                ? 'bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-600/30'
-                : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/30'}
-              disabled:opacity-50
-            `}
-          >
-            {liveMode ? '⏹ LIVE OFF' : '▶ LIVE ON'}
-          </button>
+        {/* Live toggle — shown only in Auto mode */}
+        {captureMode === 'auto' && (
+          <div className="mb-4">
+            <button
+              onClick={() => sendCommand(liveMode ? 'live_off' : 'live_on')}
+              disabled={isLoading}
+              className={`
+                w-full py-4 rounded-xl text-lg font-bold tracking-wider transition-all
+                ${liveMode
+                  ? 'bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-600/30'
+                  : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/30'}
+                disabled:opacity-50
+              `}
+            >
+              {liveMode ? '⏹ LIVE OFF' : '▶ LIVE ON'}
+            </button>
+          </div>
+        )}
+
+        {/* ─── CAPTURE MODE SWITCH ─────────────────────────────────── */}
+        <div className="mb-4 p-4 bg-gray-800/60 rounded-xl border border-gray-700">
+          <p className="text-xs text-gray-400 uppercase tracking-wider font-semibold mb-3">Capture Mode</p>
+          <div className="flex gap-2">
+            {(['auto', 'conference'] as CaptureMode[]).map((mode) => (
+              <button
+                key={mode}
+                onClick={() => handleCaptureModeSwitch(mode)}
+                className={`
+                  flex-1 py-2 px-4 rounded-lg text-sm font-semibold transition-all
+                  ${captureMode === mode
+                    ? mode === 'conference'
+                      ? 'bg-violet-600 text-white shadow-lg shadow-violet-600/30'
+                      : 'bg-sky-600 text-white shadow-lg shadow-sky-600/30'
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}
+                `}
+              >
+                {mode === 'auto' ? '⏱ Auto (30s)' : '🎤 Conference'}
+              </button>
+            ))}
+          </div>
         </div>
+
+        {/* ─── CONFERENCE MODE CONTROLS ─────────────────────────────── */}
+        {captureMode === 'conference' && (
+          <div className="mb-4 p-4 bg-violet-900/20 rounded-xl border border-violet-700/40 space-y-3">
+            {/* Output type selector */}
+            <div>
+              <p className="text-xs text-gray-400 uppercase tracking-wider font-semibold mb-2">Generate Output</p>
+              <div className="flex gap-2">
+                {(['image', 'video'] as GenerationOutputType[]).map((type) => (
+                  <button
+                    key={type}
+                    onClick={() => setGenerationOutputType(type)}
+                    className={`
+                      flex-1 py-2 px-4 rounded-lg text-sm font-semibold transition-all
+                      ${generationOutputType === type
+                        ? 'bg-violet-600 text-white shadow-md shadow-violet-600/30'
+                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}
+                    `}
+                  >
+                    {type === 'image' ? '🖼 Image' : '🎬 Video'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Conference Status Indicator */}
+            {conferenceIsGenerating && (
+              <div className="flex items-center gap-2 text-violet-300 text-sm bg-violet-900/30 px-3 py-2 rounded-lg">
+                <span className="animate-spin">⚙</span>
+                Generating {generationOutputType} from full session transcript…
+              </div>
+            )}
+
+            {isConferenceListening && !conferenceIsGenerating && (
+              <div className="flex items-center gap-2 text-emerald-300 text-sm bg-emerald-900/20 px-3 py-2 rounded-lg">
+                <span className="animate-pulse">●</span>
+                Listening — {conferenceTranscriptBuffer.split(/\s+/).filter(Boolean).length} words captured
+              </div>
+            )}
+
+            {/* Start / Stop buttons */}
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={handleConferenceStart}
+                disabled={isLoading || isConferenceListening || conferenceIsGenerating}
+                className="py-3 rounded-xl text-sm font-bold tracking-wider bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/30 transition-all disabled:opacity-40"
+              >
+                ▶ Start Listening
+              </button>
+              <button
+                onClick={handleConferenceStop}
+                disabled={isLoading || !isConferenceListening || conferenceIsGenerating}
+                className="py-3 rounded-xl text-sm font-bold tracking-wider bg-red-600 hover:bg-red-500 text-white shadow-lg shadow-red-600/30 transition-all disabled:opacity-40"
+              >
+                ⏹ Stop &amp; Generate
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Secondary controls */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

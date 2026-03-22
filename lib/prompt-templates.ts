@@ -87,7 +87,13 @@ export function buildImagePrompt(result: EmotionResult, transcript?: string): st
       break;
   }
 
-  return `Collective visual tokens: ${keywords}
+  return `--- Emotion Analysis ---
+Detected Emotion: ${result.emotion}
+Intensity Score: ${result.score}/100
+Emotional Keywords: ${keywords}
+Content Safety: ${result.safe ? 'Clean' : 'Filtered'}
+
+Collective visual tokens: ${keywords}
 Dominant emotion: ${result.emotion} (Intensity: ${result.score}/100)
 ${speechContext ? `\nAudience voice (verbatim): "${speechContext}"\n` : ''}
 Create a visual representation of the Water Spirit emerging from the Himalayan landscape.
@@ -96,4 +102,47 @@ ${moodDescription}
 The environment should show vast snow peaks, glacial water, and soft alpine light.
 
 Art Direction: Cinematic lighting, 8k resolution, Unreal Engine 5 render style, magical realism, hyper-detailed particle effects (floating water droplets, swirling mist, blowing snow), National Geographic landscape photography combined with high-end fantasy conceptual art.`;
+}
+
+// ─── CONFERENCE MODE PROMPT BUILDER ────────────────────────────────────────────
+/** Builds a full prompt from the complete conference session transcript */
+export function buildConferenceImagePrompt(result: EmotionResult, fullTranscript: string): string {
+  const keywords = result.safe ? result.keywords.join(', ') : 'abstract, pure water, calm';
+  // Use more of the transcript for conference mode (captures the full session)
+  const speechContext = result.safe ? fullTranscript.slice(0, 500).trim() : '';
+
+  // Build the same mood description as buildImagePrompt
+  let moodDescription = '';
+  switch (result.emotion) {
+    case 'Hope':
+    case 'Renewal':
+      moodDescription = 'Its form reflects hopeful intention, appearing luminous, ethereal, and fiercely protective. The water glows with vibrant turquoise and golden hour lighting. Volumetric rays of light pierce through glacial mist. The spirit flows upward like anti-gravity water, lifting gracefully toward the sky. The mood is solemn, transcendent, and highly hopeful.';
+      break;
+    case 'Fear':
+      moodDescription = 'Its form reflects deep fear and anxiety for disappearing ice. The spirit is fragmented, caught in a swirling vortex of deep abyssal blues and stark, unsettling shadows (chiaroscuro). The water is turbulent, thrashing against jagged ice formations. The mood is tense, fragile, and awe-inspiring, reflecting climate crisis.';
+      break;
+    case 'Grief':
+      moodDescription = 'Its form reflects profound grief for disappearing ice, appearing fragile, weeping, and slowly melting. The colors are muted silver, slate, and deep indigo twilight. Slow-moving, heavy water trails off the entity like tears. The spirit is dissolving back into the environment. The mood is delicate, melancholic, and tenderly mournful.';
+      break;
+    case 'Anger':
+      moodDescription = 'Its form reflects roaring anger at wasteful destruction. The water is explosive, kinetic, and violently turbulent. Crimson and deep violet lighting cuts through dark storm clouds above. Lightning reflects on the shattering glacial rapids. The spirit stands tall as a towering, overwhelming wave. The mood is wrathful and untamed.';
+      break;
+  }
+
+  return `--- Full Conference Session Emotion Analysis ---
+Detected Dominant Emotion: ${result.emotion}
+Intensity Score: ${result.score}/100
+Session Keywords: ${keywords}
+Content Safety: ${result.safe ? 'Clean' : 'Filtered'}
+
+This image captures the COLLECTIVE emotional arc of the entire conference session.
+Collective visual tokens: ${keywords}
+Dominant emotion across session: ${result.emotion} (Intensity: ${result.score}/100)
+${speechContext ? `\nFull session transcript (condensed): "${speechContext}"\n` : ''}
+Create a powerful, cinematic visual representation of the Water Spirit emerging from the Himalayan landscape — one that captures the full emotional journey of the session.
+The spirit should appear shaped from melting glaciers and flowing rivers.
+${moodDescription}
+The environment should show vast snow peaks, glacial water, and soft alpine light.
+
+Art Direction: Cinematic lighting, 8k resolution, Unreal Engine 5 render style, magical realism, hyper-detailed particle effects (floating water droplets, swirling mist, blowing snow), National Geographic landscape photography combined with high-end fantasy conceptual art. Extra emphasis on SCALE and GRANDEUR to reflect the full scope of the session.`;
 }

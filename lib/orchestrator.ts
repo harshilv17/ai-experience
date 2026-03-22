@@ -44,6 +44,10 @@ class ChunkOrchestrator {
   private watchdogTimer: ReturnType<typeof setTimeout> | null = null;
   private watchdogChunkId: string | null = null;
 
+  // Conference mode: accumulate transcripts
+  private conferenceChunks: string[] = [];
+  private conferenceChunkIndex: number = 0;
+
   // ─── HELPERS ────────────────────────────────────────────────────────────
 
   private broadcastEvent<T>(type: SystemEvent<T>['type'], data: T): void {
@@ -372,6 +376,121 @@ class ChunkOrchestrator {
     this.skippedCycles++;
     this.broadcastEvent('cycle_skipped', { reason: 'operator_skip' });
     console.log(`[Orchestrator] Cycle skipped by operator`);
+  }
+
+  // ─── CONFERENCE MODE ───────────────────────────────────────────────────────
+
+  /** Transcribe one audio chunk in conference mode — no emotion/image pipeline */
+  async processConferenceChunk(chunk: AudioChunk): Promise<void> {
+    try {
+      const transcript = await transcriptionService.transcribe(chunk);
+      this.apiStatus.whisper = 'ok';
+
+      if (!transcript.text.trim()) return;
+
+      this.conferenceChunks.push(transcript.text);
+      this.conferenceChunkIndex++;
+
+      // Extract displayable words (same stop-word logic as main pipeline)
+      const stopWords = new Set(['the','a','an','is','are','was','were','in','on','at','to','for','of','and','or','but','it','i','we','he','she','they','you','my','our','this','that','with','from','by','as','be','has','have','had','do','does','did','will','would','could','should','can','may','might','not','no','so','if','then','than','just','also','very','really','about','like','some','all','any','each','every','been','being','its','their','there','here','what','when','where','which','who','how','more','most','other','into','over','after','before','between','through','during','up','down','out','off','only','own','same','too','much','many','such','well','back','still','even','get','got','make','made','take','took','come','came','go','went','say','said','know','knew','think','thought','see','saw','want','us','me']);
+      const words = transcript.text
+        .split(/\s+/)
+        .map(w => w.replace(/[^a-zA-Z]/g, '').toLowerCase())
+        .filter(w => w.length > 2 && !stopWords.has(w))
+        .filter((w, i, arr) => arr.indexOf(w) === i)
+        .slice(0, 12);
+
+      this.broadcastEvent('conference_transcript_chunk', {
+        partialText: transcript.text,
+        words,
+        chunkIndex: this.conferenceChunkIndex,
+      });
+
+      console.log(`[Orchestrator] Conference chunk ${this.conferenceChunkIndex}: "${transcript.text.slice(0, 80)}..."`);
+    } catch (error: unknown) {
+      this.apiStatus.whisper = 'error';
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`[Orchestrator] Conference transcription error:`, message);
+      this.broadcastEvent('api_error', { api: 'whisper', error: message });
+    }
+  }
+
+  /** Merge all buffered transcripts and run full pipeline → image or video */
+  async generateConferenceResult(outputType: 'image' | 'video'): Promise<void> {
+    if (this.conferenceChunks.length === 0) {
+      console.warn('[Orchestrator] generateConferenceResult called with no chunks');
+      return;
+    }
+
+    const fullTranscript = this.conferenceChunks.join(' ');
+    console.log(`[Orchestrator] Conference generate (${outputType}): ${this.conferenceChunks.length} chunks, ${fullTranscript.length} chars`);
+
+    // Broadcast generating state
+    this.broadcastEvent('conference_generating', { outputType });
+
+    // Build a synthetic AudioChunk for transcription result
+    const chunkId = uuidv4();
+
+    try {
+      // Run emotion analysis on the full transcript
+      const syntheticTranscript = {
+        text: fullTranscript,
+        language: 'en',
+        durationSeconds: this.conferenceChunks.length * 15,
+        chunkId,
+        latencyMs: 0,
+      };
+
+      const emotionResult = await emotionAnalyzer.analyze(syntheticTranscript);
+      this.apiStatus.gpt4o = 'ok';
+      this.lastEmotion = emotionResult;
+
+      this.broadcastEvent('emotion_ready', {
+        emotion: emotionResult.emotion,
+        score: emotionResult.score,
+        keywords: emotionResult.keywords,
+        chunkId,
+      });
+
+      if (outputType === 'video') {
+        // Video generation is stubbed — generate image first, then broadcast
+        // When a real video API is wired up, replace this block.
+        console.log('[Orchestrator] Video generation stub — generating still image instead');
+      }
+
+      // Generate image (used for both image and video stub)
+      const imageResult = await imageGenerator.generate(emotionResult, fallbackManager, fullTranscript);
+
+      if (!imageResult.isFallback) {
+        fallbackManager.addToPool(emotionResult.emotion, imageResult.localPath);
+      }
+
+      this.broadcastEvent('conference_result', {
+        servedPath: imageResult.servedPath,
+        outputType,
+        emotion: emotionResult.emotion,
+        score: emotionResult.score,
+        fullTranscript,
+      });
+
+      // Also broadcast image_ready so the projection display shows it
+      this.broadcastEvent('image_ready', {
+        servedPath: imageResult.servedPath,
+        emotion: imageResult.emotion,
+        isFallback: imageResult.isFallback,
+        chunkId,
+      });
+
+      console.log(`[Orchestrator] Conference result: ${imageResult.servedPath}`);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`[Orchestrator] Conference generate error:`, message);
+      this.broadcastEvent('api_error', { api: 'dalle3', error: message });
+    } finally {
+      // Clear conference buffer
+      this.conferenceChunks = [];
+      this.conferenceChunkIndex = 0;
+    }
   }
 
   async forceGenerate(lastEmotion: EmotionResult | null): Promise<void> {

@@ -13,6 +13,8 @@ import type {
   CycleCompleteEvent,
   PromptReadyEvent,
   PoeticMomentEvent,
+  ConferenceTranscriptChunkEvent,
+  ConferenceResultEvent,
 } from '@/types';
 
 export function useSSE() {
@@ -37,6 +39,11 @@ export function useSSE() {
   const setPoeticLine = useAppStore((s) => s.setPoeticLine);
   const setLiveEmotionJSON = useAppStore((s) => s.setLiveEmotionJSON);
   const setPendingImagePrompt = useAppStore((s) => s.setPendingImagePrompt);
+
+  // Conference mode actions
+  const appendConferenceTranscript = useAppStore((s) => s.appendConferenceTranscript);
+  const setConferenceIsGenerating = useAppStore((s) => s.setConferenceIsGenerating);
+  const addToWordPool = useAppStore((s) => s.addToWordPool);
 
   useEffect(() => {
     function connect() {
@@ -168,6 +175,30 @@ export function useSSE() {
               }
               // Reset to idle on error so we don't get stuck
               setPipelinePhase('idle');
+              break;
+            }
+            case 'conference_transcript_chunk': {
+              const data = sysEvent.data as ConferenceTranscriptChunkEvent;
+              // Append to conference buffer and update live transcript view
+              appendConferenceTranscript(data.partialText);
+              setLiveTranscript(data.partialText);
+              // Add words to the rotating word pool
+              addToWordPool(data.words);
+              // Also show floating keywords on the projection
+              addSessionKeywords(data.words);
+              break;
+            }
+            case 'conference_generating': {
+              // Show a processing state while image/video is being generated
+              setConferenceIsGenerating(true);
+              setPipelinePhase('processing');
+              break;
+            }
+            case 'conference_result': {
+              const data = sysEvent.data as ConferenceResultEvent;
+              setConferenceIsGenerating(false);
+              // The image_ready event will also fire and update the projection
+              console.log(`[SSE] Conference result: ${data.outputType} → ${data.servedPath}`);
               break;
             }
             default:

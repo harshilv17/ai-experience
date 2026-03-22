@@ -16,6 +16,7 @@ import CinematicFrame from './CinematicFrame';
 import GodRays from './GodRays';
 import DataStreams from './DataStreams';
 import PulseRings from './PulseRings';
+import AudioCues from './AudioCues';
 
 export default function ProjectionDisplay() {
   const currentImagePath = useAppStore((s) => s.currentImagePath);
@@ -23,6 +24,7 @@ export default function ProjectionDisplay() {
   const floatingKeywords = useAppStore((s) => s.floatingKeywords);
   const consecutiveSameEmotion = useAppStore((s) => s.consecutiveSameEmotion);
   const currentEmotion = useAppStore((s) => s.currentEmotion);
+  const allTranscriptWords = useAppStore((s) => s.allTranscriptWords);
 
   const layerARef = useRef<HTMLImageElement>(null);
   const layerBRef = useRef<HTMLImageElement>(null);
@@ -204,39 +206,52 @@ export default function ProjectionDisplay() {
       {/* ─── PULSE RINGS ───────────────────────────────────────── */}
       <PulseRings phase={pipelinePhase} />
 
-      {/* ─── PHASE INDICATOR (Redesigned) ──────────────────────── */}
+      {/* ─── IDENTITY HEADER — THE BLUE RESONANCE ─────────────── */}
       <div
-        className="fixed top-6 left-1/2 -translate-x-1/2 z-[14] transition-all duration-700"
-        style={{ opacity: isIdle || isProcessing ? 0.8 : 0 }}
+        className="fixed top-0 left-0 right-0 z-[15] flex flex-col items-center pt-3 pb-2 pointer-events-none transition-opacity duration-1000"
+        style={{ opacity: pipelinePhase === 'displaying' ? 0 : 1 }}
       >
-        <div className="flex items-center gap-3 px-6 py-3 rounded-full border border-sky-500/15 bg-black/50 backdrop-blur-xl shadow-[0_0_30px_rgba(56,189,248,0.08)]">
-          {/* Animated indicator */}
+        <h1
+          className="text-[clamp(1.2rem,2.8vw,2.2rem)] font-bold tracking-[0.25em] uppercase select-none identity-title-glow"
+          style={{
+            color: '#38BDF8',
+            textShadow: '0 0 30px rgba(56,189,248,0.5), 0 0 60px rgba(56,189,248,0.25), 0 0 100px rgba(56,189,248,0.1)',
+            fontFamily: "'Inter', 'Segoe UI', system-ui, sans-serif",
+            letterSpacing: '0.25em',
+          }}
+        >
+          THE BLUE RESONANCE
+        </h1>
+        <div className="mt-1 flex items-center gap-3">
+          {/* Phase animated indicator — inline */}
           {pipelinePhase === 'listening' ? (
-            /* Waveform bars */
-            <div className="flex items-center gap-[3px] h-4">
+            <div className="flex items-center gap-[2px] h-3">
               {[0, 1, 2, 3, 4].map((i) => (
                 <div
                   key={i}
-                  className="w-[3px] bg-sky-400 rounded-full waveform-bar"
-                  style={{
-                    animationDelay: `${i * 0.12}s`,
-                  }}
+                  className="w-[2px] bg-sky-400/60 rounded-full waveform-bar"
+                  style={{ animationDelay: `${i * 0.12}s` }}
                 />
               ))}
             </div>
           ) : pipelinePhase === 'processing' ? (
-            /* Spinner ring */
-            <div className="w-4 h-4 rounded-full border-2 border-sky-800 border-t-sky-400 spinner-ring" />
+            <div className="w-3 h-3 rounded-full border border-sky-800 border-t-sky-400 spinner-ring" />
           ) : (
-            /* Breathing dot */
-            <div className="w-2.5 h-2.5 rounded-full bg-sky-500/50 breathing-dot" />
+            <div className="w-1.5 h-1.5 rounded-full bg-sky-500/40 breathing-dot" />
           )}
-
-          <span className="text-[11px] tracking-[0.3em] uppercase text-sky-300/60 font-light select-none">
-            {pipelinePhase === 'listening' ? 'Listening' :
-             pipelinePhase === 'processing' ? 'Analyzing' :
-             'Awaiting Speech'}
-          </span>
+          <p
+            className="text-[clamp(0.7rem,1.4vw,0.95rem)] tracking-[0.2em] select-none identity-subtitle-breathe"
+            style={{
+              color: 'rgba(56,189,248,0.45)',
+              textShadow: '0 0 15px rgba(56,189,248,0.2)',
+              fontFamily: "'Inter', 'Segoe UI', system-ui, sans-serif",
+              fontWeight: 300,
+            }}
+          >
+            {pipelinePhase === 'listening' ? 'Neer is listening…' :
+             pipelinePhase === 'processing' ? 'Neer is analyzing…' :
+             'Neer is listening…'}
+          </p>
         </div>
       </div>
 
@@ -246,6 +261,7 @@ export default function ProjectionDisplay() {
       <EmotionRibbon />
       <PoeticLine />
       <AIThinkingTicker />
+      <AudioCues />
 
       {/* ─── CINEMATIC FRAME (HUD overlay) ─────────────────────── */}
       <CinematicFrame phase={pipelinePhase} />
@@ -253,6 +269,7 @@ export default function ProjectionDisplay() {
       {/* ─── FLOATING KEYWORDS ────────────────────────────────── */}
       <FloatingKeywords
         words={floatingKeywords}
+        allWords={allTranscriptWords}
         gathering={pipelinePhase === 'revealing'}
         phase={pipelinePhase}
       />
@@ -315,6 +332,25 @@ export default function ProjectionDisplay() {
           background: 'linear-gradient(to top, rgba(0,0,0,0.6), transparent)',
         }}
       />
+
+      {/* ─── BOTTOM TAGLINE ─────────────────────────────────── */}
+      <div
+        className="fixed bottom-6 left-0 right-0 z-[13] flex justify-center pointer-events-none transition-opacity duration-1000"
+        style={{ opacity: pipelinePhase === 'displaying' ? 0 : 0.6 }}
+      >
+        <p
+          className="text-[clamp(0.8rem,1.5vw,1.05rem)] tracking-[0.22em] select-none"
+          style={{
+            color: 'rgba(186, 230, 253, 0.7)',
+            textShadow: '0 0 15px rgba(56,189,248,0.2)',
+            fontFamily: "'Inter', 'Segoe UI', system-ui, sans-serif",
+            fontWeight: 300,
+            fontStyle: 'italic',
+          }}
+        >
+          Your voices shape what comes next
+        </p>
+      </div>
 
       {/* ─── FILM GRAIN / NOISE OVERLAY ────────────────────────── */}
       <div
@@ -416,6 +452,22 @@ export default function ProjectionDisplay() {
           50% { transform: translate(3px, -1px); }
           75% { transform: translate(-1px, -2px); }
           100% { transform: translate(2px, 1px); }
+        }
+
+        /* ── Identity header animations ── */
+        .identity-title-glow {
+          animation: titleGlow 4s ease-in-out infinite;
+        }
+        @keyframes titleGlow {
+          0%, 100% { text-shadow: 0 0 30px rgba(56,189,248,0.5), 0 0 60px rgba(56,189,248,0.25); }
+          50% { text-shadow: 0 0 40px rgba(56,189,248,0.7), 0 0 80px rgba(56,189,248,0.35), 0 0 120px rgba(56,189,248,0.15); }
+        }
+        .identity-subtitle-breathe {
+          animation: subtitleBreathe 5s ease-in-out infinite;
+        }
+        @keyframes subtitleBreathe {
+          0%, 100% { opacity: 0.55; }
+          50% { opacity: 0.85; }
         }
       `}</style>
     </div>

@@ -1,7 +1,7 @@
 // components/RobotMascot.tsx — Himachali-themed AI Robot with traditional elements
 'use client';
 
-import { useMemo, useState, useEffect, memo } from 'react';
+import { useMemo, useState, useEffect, useRef, memo } from 'react';
 import { useAppStore } from '@/store/appStore';
 import type { PipelinePhase } from '@/types';
 
@@ -18,6 +18,9 @@ export default memo(function RobotMascot({ phase, consecutiveSameEmotion }: Prop
   const [eyeAnimIndex, setEyeAnimIndex] = useState(0);
   const [visibleWordCount, setVisibleWordCount] = useState(0);
   const [showGreeting, setShowGreeting] = useState(false);
+  const [eyeFlickerOpacity, setEyeFlickerOpacity] = useState(1);
+  const [headTiltDeg, setHeadTiltDeg] = useState(0);
+  const headTiltRef = useRef(0);
 
   const state = useMemo(() => {
     switch (phase) {
@@ -62,6 +65,31 @@ export default memo(function RobotMascot({ phase, consecutiveSameEmotion }: Prop
     } else { setEyeAnimIndex(0); }
   }, [state]);
 
+  // ── Eye flicker during listening (subtle brightness variation) ──
+  useEffect(() => {
+    if (phase === 'listening' || state === 'idle') {
+      const interval = setInterval(() => {
+        setEyeFlickerOpacity(0.7 + Math.random() * 0.3);
+      }, phase === 'listening' ? 400 : 1200);
+      return () => { clearInterval(interval); setEyeFlickerOpacity(1); };
+    }
+    setEyeFlickerOpacity(1);
+  }, [phase, state]);
+
+  // ── Gentle head tilt during idle/listening ──
+  useEffect(() => {
+    if (state === 'idle' || phase === 'listening') {
+      const interval = setInterval(() => {
+        const target = -2 + Math.random() * 4; // -2 to +2 degrees
+        // Smooth interpolation
+        headTiltRef.current = headTiltRef.current + (target - headTiltRef.current) * 0.3;
+        setHeadTiltDeg(headTiltRef.current);
+      }, phase === 'listening' ? 800 : 1500);
+      return () => { clearInterval(interval); setHeadTiltDeg(0); };
+    }
+    setHeadTiltDeg(0);
+  }, [state, phase]);
+
   const eyeTransform = useMemo(() => {
     switch(eyeAnimIndex) {
       case 1: return 'scale(1.4, 0.4)';
@@ -97,17 +125,20 @@ export default memo(function RobotMascot({ phase, consecutiveSameEmotion }: Prop
   return (
     <div className="fixed inset-0 z-[5] flex items-center justify-center pointer-events-none">
 
-      {/* ─── BREATHING GLOW AURA (warm saffron-tinged) ────────── */}
+      {/* ─── BREATHING GLOW AURA (enhanced — reacts to listening) ── */}
       <div
-        className={`absolute rounded-full breathing-glow transition-all duration-1000 ${
-          state === 'thinking' ? 'opacity-50' : state === 'revealing' ? 'opacity-70' : 'opacity-25'
+        className={`absolute rounded-full transition-all duration-700 ${
+          phase === 'listening' ? 'opacity-60 neer-listening-glow' :
+          state === 'thinking' ? 'opacity-50 breathing-glow' :
+          state === 'revealing' ? 'opacity-70 breathing-glow' :
+          'opacity-25 breathing-glow'
         }`}
         style={{
-          width: '500px',
-          height: '500px',
-          background: `
-            radial-gradient(circle, rgba(255, 153, 51, 0.08) 0%, rgba(56, 189, 248, 0.1) 30%, rgba(79, 70, 229, 0.04) 55%, transparent 75%)
-          `,
+          width: phase === 'listening' ? '550px' : '500px',
+          height: phase === 'listening' ? '550px' : '500px',
+          background: phase === 'listening'
+            ? 'radial-gradient(circle, rgba(56, 189, 248, 0.12) 0%, rgba(56, 189, 248, 0.08) 30%, rgba(79, 70, 229, 0.04) 55%, transparent 75%)'
+            : 'radial-gradient(circle, rgba(255, 153, 51, 0.08) 0%, rgba(56, 189, 248, 0.1) 30%, rgba(79, 70, 229, 0.04) 55%, transparent 75%)',
           filter: 'blur(25px)',
         }}
       />
@@ -266,7 +297,8 @@ export default memo(function RobotMascot({ phase, consecutiveSameEmotion }: Prop
           <circle cx="210" cy="340" r="10" fill="none" stroke="#E8DDD0" strokeWidth="1.5" opacity="0.5" />
           <circle cx="210" cy="340" r="4" fill="#38BDF8" opacity="0.3" />
 
-          {/* ── HEAD ── */}
+          {/* ── HEAD (with reactive tilt) ── */}
+          <g style={{ transform: `rotate(${headTiltDeg}deg)`, transformOrigin: '210px 135px', transition: 'transform 0.8s cubic-bezier(0.4, 0, 0.2, 1)' }}>
           <rect x="100" y="50" width="220" height="170" rx="60" fill="url(#body-warm)" filter="url(#shadow-lg)" />
 
           {/* Face Screen */}
@@ -276,11 +308,11 @@ export default memo(function RobotMascot({ phase, consecutiveSameEmotion }: Prop
           <rect x="120" y="78" width="180" height="115" rx="35" fill="none" stroke="rgba(255, 153, 51, 0.1)" strokeWidth="1" />
 
           {/* LED Strip below face */}
-          <rect x="150" y="193" width="120" height="3" rx="1.5" className="led-strip-anim" fill="url(#led-gradient)" style={{ opacity: state === 'thinking' ? 0.9 : 0.4 }} />
+          <rect x="150" y="193" width="120" height="3" rx="1.5" className="led-strip-anim" fill="url(#led-gradient)" style={{ opacity: state === 'thinking' ? 0.9 : phase === 'listening' ? 0.7 : 0.4 }} />
 
-          {/* Eyes */}
+          {/* Eyes (with flicker opacity during listening) */}
           <g className={`${state === 'idle' ? 'animate-blink' : ''} ${state === 'revealing' ? 'animate-flash' : ''}`}
-             style={{ transformOrigin: '210px 132px', transition: 'transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)' }}>
+             style={{ transformOrigin: '210px 132px', transition: 'transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)', opacity: eyeFlickerOpacity }}>
             <g style={{ transform: eyeTransform, transformOrigin: '210px 132px', transition: 'transform 0.6s cubic-bezier(0.16, 1, 0.3, 1)' }}>
               <rect x="150" y="102" width="38" height="48" rx="12"
                 fill={state === 'revealing' ? '#FFF' : '#38BDF8'}
@@ -415,6 +447,8 @@ export default memo(function RobotMascot({ phase, consecutiveSameEmotion }: Prop
           </g>
 
           {/* ── NECKLACE / GARLAND ── */}
+          </g>{/* close head tilt group */}
+
           <path d="M 145 200 Q 160 215 210 220 Q 260 215 275 200"
             fill="none" stroke="#DAA520" strokeWidth="2" opacity="0.5" strokeLinecap="round" />
           <path d="M 155 205 Q 170 218 210 222 Q 250 218 265 205"
@@ -590,6 +624,13 @@ export default memo(function RobotMascot({ phase, consecutiveSameEmotion }: Prop
 
         .breathing-glow { animation: breatheGlow 4s ease-in-out infinite; }
         @keyframes breatheGlow { 0%, 100% { transform: scale(0.95); opacity: 0.2; } 50% { transform: scale(1.08); opacity: 0.4; } }
+
+        /* ── Enhanced listening glow — faster, bluer, stronger ── */
+        .neer-listening-glow { animation: listeningGlow 2.5s ease-in-out infinite; }
+        @keyframes listeningGlow {
+          0%, 100% { transform: scale(0.98); opacity: 0.35; filter: blur(25px); }
+          50% { transform: scale(1.12); opacity: 0.65; filter: blur(30px); }
+        }
 
         .orbital-ring-1 { animation: orbitSpin1 8s linear infinite; }
         @keyframes orbitSpin1 { 0% { transform: rotateX(70deg) rotateZ(0deg); } 100% { transform: rotateX(70deg) rotateZ(360deg); } }

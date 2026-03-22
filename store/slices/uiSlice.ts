@@ -1,5 +1,5 @@
 import { StateCreator } from 'zustand';
-import type { AppState, PipelinePhase, EmotionClass } from '@/types';
+import type { AppState, PipelinePhase, EmotionClass, CaptureMode, GenerationOutputType } from '@/types';
 import { IMAGE_SYSTEM_CONTEXT } from '@/lib/prompt-templates';
 
 export interface UiSlice {
@@ -21,6 +21,16 @@ export interface UiSlice {
   systemContextOverride: string;    // operator-editable copy of IMAGE_SYSTEM_CONTEXT
   transcriptOverride: string;       // operator-editable copy of liveTranscript
 
+  // Conference mode
+  captureMode: CaptureMode;
+  generationOutputType: GenerationOutputType;
+  isConferenceListening: boolean;
+  conferenceTranscriptBuffer: string;
+  conferenceIsGenerating: boolean;
+
+  // Dynamic word pool (rolling, all unique words seen)
+  allTranscriptWords: string[];
+
   setPipelinePhase: (phase: PipelinePhase) => void;
   setCurrentImage: (path: string, emotion: EmotionClass, isFallback: boolean) => void;
   setCurrentEmotion: (emotion: EmotionClass, score: number, keywords: string[]) => void;
@@ -34,6 +44,18 @@ export interface UiSlice {
   setPendingImagePrompt: (p: string) => void;
   setSystemContextOverride: (ctx: string) => void;
   setTranscriptOverride: (t: string) => void;
+
+  // Conference mode actions
+  setCaptureMode: (mode: CaptureMode) => void;
+  setGenerationOutputType: (type: GenerationOutputType) => void;
+  setConferenceListening: (listening: boolean) => void;
+  appendConferenceTranscript: (text: string) => void;
+  clearConferenceTranscript: () => void;
+  setConferenceIsGenerating: (generating: boolean) => void;
+
+  // Dynamic word pool
+  addToWordPool: (words: string[]) => void;
+  clearWordPool: () => void;
 
   displayStartedAt: number | null;
   pendingPromptData: { transcript: string; keywords: string[]; emotion: EmotionClass; score: number } | null;
@@ -139,6 +161,16 @@ export const createUiSlice: StateCreator<AppState, [], [], UiSlice> = (set, get)
   systemContextOverride: IMAGE_SYSTEM_CONTEXT,
   transcriptOverride: '',
 
+  // Conference mode defaults
+  captureMode: 'auto',
+  generationOutputType: 'image',
+  isConferenceListening: false,
+  conferenceTranscriptBuffer: '',
+  conferenceIsGenerating: false,
+
+  // Dynamic word pool
+  allTranscriptWords: [],
+
   setPipelinePhase: (phase) => set({ pipelinePhase: phase }),
 
   setCurrentImage: (path, emotion, _isFallback) => {
@@ -181,6 +213,11 @@ export const createUiSlice: StateCreator<AppState, [], [], UiSlice> = (set, get)
     const transcriptWords = extractTranscriptWords(transcript, 4);
     const merged = mergeKeywords(keywords, transcriptWords, 8);
 
+    // Feed all unique words into the rotating word pool
+    const allNew = [...keywords, ...transcriptWords];
+    const existing = get().allTranscriptWords;
+    const poolMerged = Array.from(new Set([...existing, ...allNew.map(w => w.toLowerCase())])).slice(0, 80);
+
     set({
       currentEmotion: emotion,
       currentScore: score,
@@ -188,6 +225,7 @@ export const createUiSlice: StateCreator<AppState, [], [], UiSlice> = (set, get)
       floatingKeywords: merged,
       pipelinePhase: 'processing',
       showOverlay: true,
+      allTranscriptWords: poolMerged,
     });
   },
 
@@ -196,10 +234,16 @@ export const createUiSlice: StateCreator<AppState, [], [], UiSlice> = (set, get)
     const transcriptWords = extractTranscriptWords(text, 4);
     const merged = mergeKeywords(words, transcriptWords, 8);
 
+    // Feed into word pool
+    const allNew = [...words, ...transcriptWords];
+    const existing = get().allTranscriptWords;
+    const poolMerged = Array.from(new Set([...existing, ...allNew.map(w => w.toLowerCase())])).slice(0, 80);
+
     set({
       currentTranscript: text,
       floatingKeywords: merged,
       pipelinePhase: 'processing',
+      allTranscriptWords: poolMerged,
     });
   },
 
@@ -218,4 +262,31 @@ export const createUiSlice: StateCreator<AppState, [], [], UiSlice> = (set, get)
   setPendingPromptData: (data) => set({ pendingPromptData: data }),
   transitionToShowingPrompt: () => set({ pipelinePhase: 'showing_prompt' }),
   clearPendingPrompt: () => set({ pendingPromptData: null }),
+
+  // ── Conference mode actions ───────────────────────────────────────────────
+  setCaptureMode: (mode) => set({ captureMode: mode }),
+  setGenerationOutputType: (type) => set({ generationOutputType: type }),
+  setConferenceListening: (listening) => set({ isConferenceListening: listening }),
+  setConferenceIsGenerating: (generating) => set({ conferenceIsGenerating: generating }),
+
+  appendConferenceTranscript: (text) => {
+    const current = get().conferenceTranscriptBuffer;
+    const updated = current ? `${current} ${text}` : text;
+    // Also extract words and add to the pool
+    const newWords = extractTranscriptWords(text, 10);
+    const existing = get().allTranscriptWords;
+    const merged = Array.from(new Set([...existing, ...newWords])).slice(0, 80);
+    set({ conferenceTranscriptBuffer: updated, allTranscriptWords: merged });
+  },
+
+  clearConferenceTranscript: () => set({ conferenceTranscriptBuffer: '', isConferenceListening: false, conferenceIsGenerating: false }),
+
+  // ── Dynamic word pool actions ─────────────────────────────────────────────
+  addToWordPool: (words) => {
+    const existing = get().allTranscriptWords;
+    const merged = Array.from(new Set([...existing, ...words.map(w => w.toLowerCase())])).slice(0, 80);
+    set({ allTranscriptWords: merged });
+  },
+
+  clearWordPool: () => set({ allTranscriptWords: [] }),
 });

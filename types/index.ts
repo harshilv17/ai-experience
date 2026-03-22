@@ -2,6 +2,10 @@
 
 export type EmotionClass = 'Hope' | 'Fear' | 'Grief' | 'Anger' | 'Renewal';
 
+export type CaptureMode = 'auto' | 'conference';
+
+export type GenerationOutputType = 'image' | 'video';
+
 export type OrchestratorState = 'idle' | 'live' | 'paused' | 'processing';
 
 export type PipelinePhase = 'idle' | 'listening' | 'processing' | 'showing_prompt' | 'revealing' | 'displaying';
@@ -19,7 +23,10 @@ export type SystemEventType =
   | 'cycle_complete'
   | 'cycle_skipped'
   | 'api_error'
-  | 'control';
+  | 'control'
+  | 'conference_transcript_chunk'
+  | 'conference_generating'
+  | 'conference_result';
 
 export type ControlCommand =
   | 'live_on'
@@ -28,7 +35,9 @@ export type ControlCommand =
   | 'resume'
   | 'skip'
   | 'force_generate'
-  | 'force_generate_with_prompt';
+  | 'force_generate_with_prompt'
+  | 'conference_start'
+  | 'conference_stop';
 
 // ─── PIPELINE DTOs ─────────────────────────────────────────────────────────
 
@@ -129,6 +138,20 @@ export interface PoeticMomentEvent {
   emotion: EmotionClass;
 }
 
+export interface ConferenceTranscriptChunkEvent {
+  partialText: string;
+  words: string[];
+  chunkIndex: number;
+}
+
+export interface ConferenceResultEvent {
+  servedPath: string;
+  outputType: GenerationOutputType;
+  emotion: EmotionClass;
+  score: number;
+  fullTranscript: string;
+}
+
 // ─── UI STATE ──────────────────────────────────────────────────────────────
 
 export interface CycleStats {
@@ -203,6 +226,16 @@ export interface AppState {
   systemContextOverride: string;    // operator-editable copy of IMAGE_SYSTEM_CONTEXT
   transcriptOverride: string;       // operator-editable copy of liveTranscript
 
+  // ─── CONFERENCE MODE ───────────────────────────────────────
+  captureMode: CaptureMode;
+  generationOutputType: GenerationOutputType;
+  isConferenceListening: boolean;
+  conferenceTranscriptBuffer: string;   // accumulated full transcript
+  conferenceIsGenerating: boolean;
+
+  // ─── DYNAMIC WORD POOL ────────────────────────────────────
+  allTranscriptWords: string[];         // rolling pool of all unique extracted words
+
   // Actions
   setOrchestratorState: (state: OrchestratorState) => void;
   setLiveMode: (live: boolean) => void;
@@ -234,4 +267,16 @@ export interface AppState {
   setPendingImagePrompt: (p: string) => void;
   setSystemContextOverride: (ctx: string) => void;
   setTranscriptOverride: (t: string) => void;
+
+  // Conference mode actions
+  setCaptureMode: (mode: CaptureMode) => void;
+  setGenerationOutputType: (type: GenerationOutputType) => void;
+  setConferenceListening: (listening: boolean) => void;
+  appendConferenceTranscript: (text: string) => void;
+  clearConferenceTranscript: () => void;
+  setConferenceIsGenerating: (generating: boolean) => void;
+
+  // Dynamic word pool
+  addToWordPool: (words: string[]) => void;
+  clearWordPool: () => void;
 }

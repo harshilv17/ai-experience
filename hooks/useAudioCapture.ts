@@ -5,13 +5,17 @@ import { useEffect, useRef, useCallback, useState } from 'react';
 import { useAppStore } from '@/store/appStore';
 import { v4 as uuidv4 } from 'uuid';
 
-const CHUNK_DURATION_MS = 30000; // 30 seconds — V2 pipeline timing
+const CHUNK_DURATION_MS = 30000;           // Auto mode: 30 second chunks
+const CONFERENCE_CHUNK_DURATION_MS = 15000; // Conference mode: 15 second chunks (transcribe-only)
 const TEST_EMOTIONS = ['hope', 'fear', 'grief', 'anger', 'renewal'] as const;
 
 export function useAudioCapture() {
   const selectedMicDeviceId = useAppStore((s) => s.selectedMicDeviceId);
   const liveMode = useAppStore((s) => s.liveMode);
   const testMode = useAppStore((s) => s.testMode);
+  const captureMode = useAppStore((s) => s.captureMode);
+  const isConferenceListening = useAppStore((s) => s.isConferenceListening);
+  const setConferenceListening = useAppStore((s) => s.setConferenceListening);
 
   const [isCapturing, setIsCapturing] = useState(false);
 
@@ -24,7 +28,7 @@ export function useAudioCapture() {
   const testIndexRef = useRef<number>(0);
   const isCapturingRef = useRef<boolean>(false);
 
-  const processCurrentChunk = useCallback(async () => {
+  const processCurrentChunk = useCallback(async (conference = false) => {
     if (!mediaRecorderRef.current || mediaRecorderRef.current.state !== 'recording') {
       return;
     }
@@ -61,12 +65,16 @@ export function useAudioCapture() {
 
         // POST to /api/audio
         const chunkId = uuidv4();
+        const chunkDuration = conference ? CONFERENCE_CHUNK_DURATION_MS : CHUNK_DURATION_MS;
         const formData = new FormData();
         formData.append('audio', blob);
         formData.append('chunkId', chunkId);
-        formData.append('durationMs', String(CHUNK_DURATION_MS));
+        formData.append('durationMs', String(chunkDuration));
         formData.append('speechDurationMs', String(currentSpeechDuration));
         formData.append('mimeType', 'audio/webm;codecs=opus');
+        if (conference) {
+          formData.append('conference', 'true');
+        }
 
         try {
           const response = await fetch('/api/audio', {
@@ -108,7 +116,7 @@ export function useAudioCapture() {
     }
   }, []);
 
-  const startCapture = useCallback(async () => {
+  const startCapture = useCallback(async (isConference = false) => {
     if (isCapturingRef.current) return;
 
     try {
@@ -182,23 +190,25 @@ export function useAudioCapture() {
       };
       requestAnimationFrame(checkAudio);
 
-      // Set up chunk timer
+      // Set up chunk timer — different duration for conference vs auto
+      const chunkDuration = isConference ? CONFERENCE_CHUNK_DURATION_MS : CHUNK_DURATION_MS;
       chunkTimerRef.current = setInterval(() => {
         // End any ongoing speech timing
         if (isSpeaking && speechTimerRef.current) {
           speechDurationRef.current += Date.now() - speechTimerRef.current;
           speechTimerRef.current = Date.now();
         }
-        processCurrentChunk();
-      }, CHUNK_DURATION_MS);
+        processCurrentChunk(isConference);
+      }, chunkDuration);
 
-      console.log('[AudioCapture] Started capturing from mic');
+      console.log(`[AudioCapture] Started capturing from mic (${isConference ? 'conference' : 'auto'} mode)`);
     } catch (err) {
       console.error('[AudioCapture] Failed to start capture:', err);
       isCapturingRef.current = false;
       setIsCapturing(false);
+      if (isConference) setConferenceListening(false);
     }
-  }, [selectedMicDeviceId, testMode, processCurrentChunk, processTestChunk]);
+  }, [selectedMicDeviceId, testMode, processCurrentChunk, processTestChunk, setConferenceListening]);
 
   const stopCapture = useCallback(() => {
     isCapturingRef.current = false;
@@ -232,16 +242,25 @@ export function useAudioCapture() {
     console.log('[AudioCapture] Stopped capturing');
   }, []);
 
-  // Start/stop based on liveMode
+  // Start/stop based on liveMode (auto mode) or isConferenceListening (conference mode)
   useEffect(() => {
-    if (liveMode) {
-      startCapture();
+    if (captureMode === 'conference') {
+      if (isConferenceListening) {
+        startCapture(true);
+      } else {
+        stopCapture();
+      }
     } else {
-      stopCapture();
+      // Auto mode
+      if (liveMode) {
+        startCapture(false);
+      } else {
+        stopCapture();
+      }
     }
     return () => stopCapture();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [liveMode, testMode]);
+  }, [liveMode, testMode, captureMode, isConferenceListening]);
 
   return { isCapturing };
 }

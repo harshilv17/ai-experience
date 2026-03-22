@@ -18,6 +18,7 @@ export async function POST(req: Request) {
     const durationMs = parseInt(formData.get('durationMs') as string, 10);
     const speechDurationMs = parseInt(formData.get('speechDurationMs') as string, 10);
     const mimeType = (formData.get('mimeType') as string) || 'audio/webm;codecs=opus';
+    const isConference = formData.get('conference') === 'true';
 
     if (!audioFile) {
       return NextResponse.json({ error: 'No audio file provided' }, { status: 400 });
@@ -66,7 +67,13 @@ export async function POST(req: Request) {
       chunkId,
     };
 
-    // Process through the orchestrator pipeline
+    if (isConference) {
+      // Conference mode: transcribe only, no emotion/image pipeline
+      await orchestrator.processConferenceChunk(chunk);
+      return NextResponse.json({ status: 'conference_chunk_processed', chunkId });
+    }
+
+    // Auto mode: full pipeline
     const result = await orchestrator.processChunk(chunk);
 
     return NextResponse.json(result);

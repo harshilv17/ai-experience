@@ -1,7 +1,7 @@
-// components/FloatingKeywords.tsx — Floating cloud/bubble word display from transcript
+// components/FloatingKeywords.tsx — Dynamic rotating word display from live transcript pool
 'use client';
 
-import { useEffect, useState, useMemo, useRef } from 'react';
+import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import type { PipelinePhase } from '@/types';
 
 interface FloatingBubble {
@@ -9,222 +9,247 @@ interface FloatingBubble {
   id: string;
   x: number;
   y: number;
-  size: number;      // font size in rem
-  bubbleW: number;   // bubble width
+  size: number;
   delay: number;
   floatDuration: number;
-  floatRange: number; // px of vertical float
-  driftX: number;     // px of horizontal drift
-  hue: number;        // for color theming
-  variant: 'warm' | 'cool' | 'gold';
+  driftAngle: number;
+  driftSpeed: number;
+  variant: 'aqua' | 'cyan' | 'teal';
 }
 
 interface Props {
-  words: string[];
+  words: string[];         // Current "active" batch (used if allWords is empty)
+  allWords?: string[];     // Full rolling pool of transcript words for rotation
   gathering?: boolean;
   phase: PipelinePhase;
 }
 
-export default function FloatingKeywords({ words, gathering = false, phase }: Props) {
+const ROTATION_INTERVAL_MS = 3500;  // How often words rotate (3.5s)
+const VISIBLE_COUNT = 8;            // How many words to show at once
+
+function pickSubset(pool: string[], count: number): string[] {
+  if (pool.length <= count) return [...pool];
+  // Weighted random: prefer the last 60% of words (newest)
+  const shuffled = [...pool].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, count);
+}
+
+function makeBubble(text: string, index: number): FloatingBubble {
+  const variants: Array<'aqua' | 'cyan' | 'teal'> = ['aqua', 'cyan', 'teal'];
+  const x = 8 + Math.random() * 84;
+  const y = 12 + Math.random() * 72;
+  const dx = 50 - x;
+  const dy = 50 - y;
+  const angle = Math.atan2(dy, dx);
+
+  return {
+    text,
+    id: `${text}-${index}-${Date.now()}-${Math.random()}`,
+    x,
+    y,
+    size: Math.max(0.85, Math.min(1.5, 2.0 - text.length * 0.07)),
+    delay: index * 200,
+    floatDuration: 5000 + Math.random() * 5000,
+    driftAngle: angle,
+    driftSpeed: 1 + Math.random() * 2,
+    variant: variants[index % 3],
+  };
+}
+
+export default function FloatingKeywords({ words, allWords = [], gathering = false, phase }: Props) {
   const [visibleBubbles, setVisibleBubbles] = useState<FloatingBubble[]>([]);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [driftOffset, setDriftOffset] = useState(0);
+  const rotationRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const driftRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const bubbleData = useMemo(() => {
-    const variants: Array<'warm' | 'cool' | 'gold'> = ['warm', 'cool', 'gold'];
-    return words.map((text, i) => {
-      const variant = variants[i % 3];
-      const textLen = text.length;
-      return {
-        text,
-        id: `${text}-${i}-${Date.now()}`,
-        x: 12 + Math.random() * 76,
-        y: 15 + Math.random() * 65,
-        size: Math.max(0.85, Math.min(1.6, 2.2 - textLen * 0.08)),
-        bubbleW: Math.max(80, textLen * 14 + 40),
-        delay: i * 500,
-        floatDuration: 5000 + Math.random() * 4000,
-        floatRange: 8 + Math.random() * 12,
-        driftX: -6 + Math.random() * 12,
-        hue: variant === 'warm' ? 25 : variant === 'gold' ? 42 : 200,
-        variant,
-      };
-    });
-  }, [words]);
+  // The effective word pool: prefer allWords if available, fall back to current batch
+  const wordPool = useMemo(() => {
+    return allWords.length > 0 ? allWords : words;
+  }, [allWords, words]);
 
+  const refreshBubbles = useCallback(() => {
+    if (wordPool.length === 0) return;
+    const subset = pickSubset(wordPool, VISIBLE_COUNT);
+    const bubbles = subset.map((text, i) => makeBubble(text, i));
+    setVisibleBubbles(bubbles);
+    setDriftOffset(0);
+  }, [wordPool]);
+
+  // Initial render + whenever word pool changes
   useEffect(() => {
-    setVisibleBubbles([]);
-    if (words.length === 0) return;
-    const timers: ReturnType<typeof setTimeout>[] = [];
-    bubbleData.forEach((bubble) => {
-      const timer = setTimeout(() => {
-        setVisibleBubbles((prev) => [...prev, bubble]);
-      }, bubble.delay);
-      timers.push(timer);
-    });
-    return () => timers.forEach(clearTimeout);
-  }, [bubbleData, words.length]);
+    if (wordPool.length === 0) {
+      setVisibleBubbles([]);
+      return;
+    }
+    refreshBubbles();
+  }, [wordPool, refreshBubbles]);
 
-  if (words.length === 0 || phase === 'displaying' || phase === 'idle') return null;
+  // Rotation timer — swap words every ROTATION_INTERVAL_MS
+  useEffect(() => {
+    if (wordPool.length === 0 || phase === 'displaying' || phase === 'idle') {
+      if (rotationRef.current) clearInterval(rotationRef.current);
+      return;
+    }
 
-  const getBubbleColors = (v: 'warm' | 'cool' | 'gold') => {
+    rotationRef.current = setInterval(() => {
+      refreshBubbles();
+    }, ROTATION_INTERVAL_MS);
+
+    return () => {
+      if (rotationRef.current) clearInterval(rotationRef.current);
+    };
+  }, [wordPool, phase, refreshBubbles]);
+
+  // Drift animation tick
+  useEffect(() => {
+    if (visibleBubbles.length === 0) { setDriftOffset(0); return; }
+    driftRef.current = setInterval(() => {
+      setDriftOffset((prev) => prev + 1);
+    }, 100);
+    return () => {
+      if (driftRef.current) clearInterval(driftRef.current);
+    };
+  }, [visibleBubbles.length]);
+
+  if (wordPool.length === 0 || phase === 'displaying' || phase === 'idle') return null;
+
+  const getColors = (v: 'aqua' | 'cyan' | 'teal') => {
     switch (v) {
-      case 'warm': return {
-        bg: 'rgba(255, 153, 51, 0.06)',
-        border: 'rgba(255, 153, 51, 0.2)',
-        text: 'rgba(255, 200, 120, 0.95)',
-        glow: 'rgba(255, 153, 51, 0.12)',
-        shadow: 'rgba(255, 153, 51, 0.08)',
+      case 'aqua': return {
+        bg: 'rgba(56, 189, 248, 0.04)',
+        border: 'rgba(56, 189, 248, 0.12)',
+        text: 'rgba(186, 230, 253, 0.92)',
+        glow: 'rgba(56, 189, 248, 0.25)',
+        outerGlow: 'rgba(56, 189, 248, 0.08)',
       };
-      case 'gold': return {
-        bg: 'rgba(218, 165, 32, 0.06)',
-        border: 'rgba(218, 165, 32, 0.2)',
-        text: 'rgba(253, 224, 71, 0.95)',
-        glow: 'rgba(218, 165, 32, 0.12)',
-        shadow: 'rgba(218, 165, 32, 0.08)',
+      case 'cyan': return {
+        bg: 'rgba(34, 211, 238, 0.04)',
+        border: 'rgba(34, 211, 238, 0.1)',
+        text: 'rgba(207, 250, 254, 0.92)',
+        glow: 'rgba(34, 211, 238, 0.2)',
+        outerGlow: 'rgba(34, 211, 238, 0.06)',
       };
-      case 'cool': return {
-        bg: 'rgba(56, 189, 248, 0.05)',
-        border: 'rgba(56, 189, 248, 0.15)',
-        text: 'rgba(186, 230, 253, 0.95)',
-        glow: 'rgba(56, 189, 248, 0.1)',
-        shadow: 'rgba(56, 189, 248, 0.06)',
+      case 'teal': return {
+        bg: 'rgba(20, 184, 166, 0.04)',
+        border: 'rgba(20, 184, 166, 0.1)',
+        text: 'rgba(204, 251, 241, 0.92)',
+        glow: 'rgba(20, 184, 166, 0.2)',
+        outerGlow: 'rgba(20, 184, 166, 0.06)',
       };
     }
   };
 
   return (
     <div
-      ref={containerRef}
       className="fixed inset-0 pointer-events-none overflow-hidden"
       style={{ zIndex: 8 }}
     >
       {visibleBubbles.map((bubble) => {
-        const colors = getBubbleColors(bubble.variant);
+        const colors = getColors(bubble.variant);
+        const driftPx = driftOffset * bubble.driftSpeed * 0.08;
+        const driftX = Math.cos(bubble.driftAngle) * driftPx;
+        const driftY = Math.sin(bubble.driftAngle) * driftPx;
+
         return (
           <div
             key={bubble.id}
-            className="absolute bubble-float-in"
+            className="absolute water-word-appear"
             style={{
-              left: gathering ? '50%' : `${bubble.x}%`,
-              top: gathering ? '50%' : `${bubble.y}%`,
+              left: gathering ? '50%' : `calc(${bubble.x}% + ${driftX}px)`,
+              top: gathering ? '50%' : `calc(${bubble.y}% + ${driftY}px)`,
               transform: gathering
-                ? 'translate(-50%, -50%) scale(0.5)'
+                ? 'translate(-50%, -50%) scale(0.3)'
                 : 'translate(-50%, -50%) scale(1)',
-              transitionDuration: gathering ? '2s' : '0.6s',
-              transitionTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)',
-              transitionProperty: 'left, top, transform',
+              transition: gathering
+                ? 'left 2s cubic-bezier(0.4,0,0.2,1), top 2s cubic-bezier(0.4,0,0.2,1), transform 2s cubic-bezier(0.4,0,0.2,1), opacity 2s'
+                : 'left 0.4s ease-out, top 0.4s ease-out',
+              opacity: gathering ? 0.3 : undefined,
+              animationDelay: `${bubble.delay}ms`,
               animation: `
-                bubbleFloat ${bubble.floatDuration}ms ease-in-out infinite,
-                bubblePopIn 600ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards
+                waterFloat ${bubble.floatDuration}ms ease-in-out infinite,
+                waterAppear 700ms cubic-bezier(0.16, 1, 0.3, 1) forwards
               `,
-              opacity: 0,
             }}
           >
-            {/* The cloud/bubble container */}
             <div
-              className="relative px-5 py-2.5 rounded-[20px] backdrop-blur-md"
+              className="relative px-6 py-3 rounded-[30px]"
               style={{
                 background: colors.bg,
                 border: `1px solid ${colors.border}`,
                 boxShadow: `
-                  0 0 20px ${colors.shadow},
-                  0 4px 15px rgba(0, 0, 0, 0.15),
-                  inset 0 1px 0 rgba(255, 255, 255, 0.06)
+                  0 0 30px ${colors.outerGlow},
+                  0 0 60px ${colors.outerGlow},
+                  inset 0 1px 0 rgba(255, 255, 255, 0.04),
+                  0 4px 20px rgba(0, 0, 0, 0.1)
                 `,
-                minWidth: `${bubble.bubbleW}px`,
-                textAlign: 'center',
+                backdropFilter: 'blur(8px)',
               }}
             >
-              {/* Inner glow highlight */}
               <div
-                className="absolute top-0 left-[15%] right-[15%] h-[1px] rounded-full"
+                className="absolute top-0 left-[10%] right-[10%] h-[1px] rounded-full water-caustic-shimmer"
                 style={{ background: `linear-gradient(90deg, transparent, ${colors.glow}, transparent)` }}
               />
-              {/* Text */}
+              <div
+                className="absolute bottom-0 left-[20%] right-[20%] h-[1px] rounded-full"
+                style={{
+                  background: `linear-gradient(90deg, transparent, ${colors.glow}40, transparent)`,
+                  opacity: 0.5,
+                }}
+              />
               <span
-                className="relative z-10 font-light tracking-[0.15em] select-none whitespace-nowrap"
+                className="relative z-10 font-light tracking-[0.2em] select-none whitespace-nowrap"
                 style={{
                   fontSize: `${bubble.size}rem`,
                   color: colors.text,
-                  textShadow: `0 0 20px ${colors.glow}, 0 0 40px ${colors.shadow}`,
+                  textShadow: `0 0 25px ${colors.glow}, 0 0 50px ${colors.outerGlow}`,
                 }}
               >
                 {bubble.text}
               </span>
             </div>
-
-            {/* Small "tail" blob underneath — cloud-like */}
-            <div
-              className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-4 h-2 rounded-full"
-              style={{
-                background: colors.bg,
-                border: `1px solid ${colors.border}`,
-                borderTop: 'none',
-                opacity: 0.6,
-              }}
-            />
           </div>
         );
       })}
 
-      {/* Wispy connection lines between recent bubbles */}
-      {visibleBubbles.length > 1 && (
-        <svg className="absolute inset-0 w-full h-full" style={{ opacity: 0.06 }}>
-          {visibleBubbles.slice(-6).map((bubble, i, arr) => {
-            const next = arr[i + 1];
-            if (!next) return null;
-            return (
-              <line
-                key={`conn-${bubble.id}`}
-                x1={`${bubble.x}%`} y1={`${bubble.y}%`}
-                x2={`${next.x}%`} y2={`${next.y}%`}
-                stroke="rgba(218, 165, 32, 0.4)"
-                strokeWidth="1"
-                strokeDasharray="4 8"
-                className="connection-fade"
-              />
-            );
-          })}
-        </svg>
-      )}
-
       <style jsx>{`
-        @keyframes bubbleFloat {
+        @keyframes waterFloat {
           0%, 100% {
             transform: translate(-50%, -50%) translateY(0) translateX(0);
           }
-          33% {
-            transform: translate(-50%, -50%) translateY(-10px) translateX(4px);
+          25% {
+            transform: translate(-50%, -50%) translateY(-8px) translateX(5px);
           }
-          66% {
-            transform: translate(-50%, -50%) translateY(-6px) translateX(-3px);
+          50% {
+            transform: translate(-50%, -50%) translateY(-4px) translateX(-3px);
+          }
+          75% {
+            transform: translate(-50%, -50%) translateY(-10px) translateX(2px);
           }
         }
 
-        @keyframes bubblePopIn {
+        @keyframes waterAppear {
           0% {
             opacity: 0;
-            transform: translate(-50%, -50%) scale(0.2);
-            filter: blur(12px);
+            transform: translate(-50%, -50%) scale(0.3) translateY(20px);
+            filter: blur(15px);
           }
-          60% {
-            opacity: 1;
-            transform: translate(-50%, -50%) scale(1.08);
-            filter: blur(0px);
+          50% {
+            opacity: 0.8;
+            filter: blur(2px);
           }
           100% {
-            opacity: 0.95;
-            transform: translate(-50%, -50%) scale(1);
+            opacity: 0.92;
+            transform: translate(-50%, -50%) scale(1) translateY(0);
             filter: blur(0px);
           }
         }
 
-        .connection-fade {
-          animation: connFade 4s ease-in-out infinite;
+        .water-caustic-shimmer {
+          animation: causticShimmer 3s ease-in-out infinite;
         }
-        @keyframes connFade {
-          0%, 100% { opacity: 0; }
-          50% { opacity: 0.3; }
+        @keyframes causticShimmer {
+          0%, 100% { opacity: 0.3; transform: scaleX(0.8); }
+          50% { opacity: 0.8; transform: scaleX(1.1); }
         }
       `}</style>
     </div>
