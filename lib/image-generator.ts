@@ -136,10 +136,22 @@ class ImageGenerator {
 
     const fallbackPath = fallbackManager.getPoolImage(emotion);
     if (!fallbackPath) {
-      throw {
-        code: 'NO_FALLBACK_AVAILABLE',
-        message: 'All generation retries exhausted and no fallback images available',
+      // No fallback images available — broadcast an api_error so the client
+      // can show a message, but do NOT throw. Return a sentinel result.
+      sseBroker.broadcast({
+        type: 'api_error',
+        data: { api: 'dalle3', error: 'DALL-E rate limit hit and no fallback images available yet. Generate at least one image first, or add fallback images to public/fallback/<emotion>/.' },
+        timestamp: Date.now(),
+      });
+      return {
+        remoteUrl: '',
+        localPath: '',
+        servedPath: '',
+        prompt: fullPrompt,
+        emotion,
+        isFallback: true,
         chunkId,
+        latencyMs: Date.now() - startTime,
       };
     }
 

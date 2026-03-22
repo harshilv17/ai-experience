@@ -48,6 +48,7 @@ class ChunkOrchestrator {
   private conferenceChunks: string[] = [];
   private conferenceChunkIndex: number = 0;
 
+
   // ─── HELPERS ────────────────────────────────────────────────────────────
 
   private broadcastEvent<T>(type: SystemEvent<T>['type'], data: T): void {
@@ -158,7 +159,7 @@ class ChunkOrchestrator {
 
       // Broadcast transcript immediately so client can show floating keywords
       // while GPT-4o + DALL-E are still working (reduces perceived latency)
-      const stopWords = new Set(['the','a','an','is','are','was','were','in','on','at','to','for','of','and','or','but','it','i','we','he','she','they','you','my','our','this','that','with','from','by','as','be','has','have','had','do','does','did','will','would','could','should','can','may','might','not','no','so','if','then','than','just','also','very','really','about','like','some','all','any','each','every','been','being','its','their','there','here','what','when','where','which','who','how','more','most','other','into','over','after','before','between','through','during','up','down','out','off','only','own','same','too','much','many','such','well','back','still','even','get','got','make','made','take','took','come','came','go','went','say','said','know','knew','think','thought','see','saw','want','us','me']);
+      const stopWords = new Set(['the', 'a', 'an', 'is', 'are', 'was', 'were', 'in', 'on', 'at', 'to', 'for', 'of', 'and', 'or', 'but', 'it', 'i', 'we', 'he', 'she', 'they', 'you', 'my', 'our', 'this', 'that', 'with', 'from', 'by', 'as', 'be', 'has', 'have', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'can', 'may', 'might', 'not', 'no', 'so', 'if', 'then', 'than', 'just', 'also', 'very', 'really', 'about', 'like', 'some', 'all', 'any', 'each', 'every', 'been', 'being', 'its', 'their', 'there', 'here', 'what', 'when', 'where', 'which', 'who', 'how', 'more', 'most', 'other', 'into', 'over', 'after', 'before', 'between', 'through', 'during', 'up', 'down', 'out', 'off', 'only', 'own', 'same', 'too', 'much', 'many', 'such', 'well', 'back', 'still', 'even', 'get', 'got', 'make', 'made', 'take', 'took', 'come', 'came', 'go', 'went', 'say', 'said', 'know', 'knew', 'think', 'thought', 'see', 'saw', 'want', 'us', 'me']);
       const words = transcript.text
         .split(/\s+/)
         .map(w => w.replace(/[^a-zA-Z]/g, '').toLowerCase())
@@ -219,6 +220,9 @@ class ChunkOrchestrator {
       }
 
       // V2 Section 6: Start watchdog timer after transcript_ready
+      console.log("hiii");
+
+
       this.startWatchdog(chunk.chunkId, emotionResult);
 
     } catch (error: unknown) {
@@ -380,9 +384,27 @@ class ChunkOrchestrator {
 
   // ─── CONFERENCE MODE ───────────────────────────────────────────────────────
 
+  /** Signal clients that conference listening has started */
+  conferenceStart(): void {
+    this.broadcastEvent('pipeline_phase', { phase: 'listening' });
+    this.conferenceChunks = [];
+    this.conferenceChunkIndex = 0;
+    console.log('[Orchestrator] Conference started');
+  }
+
+  /** Signal clients that conference listening has ended */
+  conferenceEnd(): void {
+    this.broadcastEvent('pipeline_phase', { phase: 'idle' });
+    console.log('[Orchestrator] Conference ended');
+  }
+
   /** Transcribe one audio chunk in conference mode — no emotion/image pipeline */
   async processConferenceChunk(chunk: AudioChunk): Promise<void> {
     try {
+      if (this.conferenceChunks.length === 0) {
+        this.conferenceStart();
+      }
+
       const transcript = await transcriptionService.transcribe(chunk);
       this.apiStatus.whisper = 'ok';
 
@@ -392,7 +414,7 @@ class ChunkOrchestrator {
       this.conferenceChunkIndex++;
 
       // Extract displayable words (same stop-word logic as main pipeline)
-      const stopWords = new Set(['the','a','an','is','are','was','were','in','on','at','to','for','of','and','or','but','it','i','we','he','she','they','you','my','our','this','that','with','from','by','as','be','has','have','had','do','does','did','will','would','could','should','can','may','might','not','no','so','if','then','than','just','also','very','really','about','like','some','all','any','each','every','been','being','its','their','there','here','what','when','where','which','who','how','more','most','other','into','over','after','before','between','through','during','up','down','out','off','only','own','same','too','much','many','such','well','back','still','even','get','got','make','made','take','took','come','came','go','went','say','said','know','knew','think','thought','see','saw','want','us','me']);
+      const stopWords = new Set(['the', 'a', 'an', 'is', 'are', 'was', 'were', 'in', 'on', 'at', 'to', 'for', 'of', 'and', 'or', 'but', 'it', 'i', 'we', 'he', 'she', 'they', 'you', 'my', 'our', 'this', 'that', 'with', 'from', 'by', 'as', 'be', 'has', 'have', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'can', 'may', 'might', 'not', 'no', 'so', 'if', 'then', 'than', 'just', 'also', 'very', 'really', 'about', 'like', 'some', 'all', 'any', 'each', 'every', 'been', 'being', 'its', 'their', 'there', 'here', 'what', 'when', 'where', 'which', 'who', 'how', 'more', 'most', 'other', 'into', 'over', 'after', 'before', 'between', 'through', 'during', 'up', 'down', 'out', 'off', 'only', 'own', 'same', 'too', 'much', 'many', 'such', 'well', 'back', 'still', 'even', 'get', 'got', 'make', 'made', 'take', 'took', 'come', 'came', 'go', 'went', 'say', 'said', 'know', 'knew', 'think', 'thought', 'see', 'saw', 'want', 'us', 'me']);
       const words = transcript.text
         .split(/\s+/)
         .map(w => w.replace(/[^a-zA-Z]/g, '').toLowerCase())
@@ -465,23 +487,28 @@ class ChunkOrchestrator {
         fallbackManager.addToPool(emotionResult.emotion, imageResult.localPath);
       }
 
-      this.broadcastEvent('conference_result', {
-        servedPath: imageResult.servedPath,
-        outputType,
-        emotion: emotionResult.emotion,
-        score: emotionResult.score,
-        fullTranscript,
-      });
+      // Only broadcast if we actually have an image to show
+      if (imageResult.servedPath) {
+        this.broadcastEvent('conference_result', {
+          servedPath: imageResult.servedPath,
+          outputType,
+          emotion: emotionResult.emotion,
+          score: emotionResult.score,
+          fullTranscript,
+        });
 
-      // Also broadcast image_ready so the projection display shows it
-      this.broadcastEvent('image_ready', {
-        servedPath: imageResult.servedPath,
-        emotion: imageResult.emotion,
-        isFallback: imageResult.isFallback,
-        chunkId,
-      });
+        // Also broadcast image_ready so the projection display shows it
+        this.broadcastEvent('image_ready', {
+          servedPath: imageResult.servedPath,
+          emotion: imageResult.emotion,
+          isFallback: imageResult.isFallback,
+          chunkId,
+        });
 
-      console.log(`[Orchestrator] Conference result: ${imageResult.servedPath}`);
+        console.log(`[Orchestrator] Conference result: ${imageResult.servedPath}`);
+      } else {
+        console.warn('[Orchestrator] Conference result: no image generated (fallback pool empty)');
+      }
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
       console.error(`[Orchestrator] Conference generate error:`, message);
@@ -547,8 +574,8 @@ class ChunkOrchestrator {
     const avgLatencyMs =
       this.latencyHistory.length > 0
         ? Math.round(
-            this.latencyHistory.reduce((a, b) => a + b, 0) / this.latencyHistory.length
-          )
+          this.latencyHistory.reduce((a, b) => a + b, 0) / this.latencyHistory.length
+        )
         : 0;
 
     return {

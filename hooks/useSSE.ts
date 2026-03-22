@@ -177,6 +177,11 @@ export function useSSE() {
               setPipelinePhase('idle');
               break;
             }
+            case 'pipeline_phase': {
+              const data = sysEvent.data as { phase: string };
+              setPipelinePhase(data.phase as 'idle' | 'listening' | 'processing' | 'showing_prompt' | 'revealing' | 'displaying');
+              break;
+            }
             case 'conference_transcript_chunk': {
               const data = sysEvent.data as ConferenceTranscriptChunkEvent;
               // Append to conference buffer and update live transcript view

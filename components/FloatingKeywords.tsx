@@ -111,7 +111,8 @@ export default function FloatingKeywords({ words, allWords = [], gathering = fal
     };
   }, [visibleBubbles.length]);
 
-  if (wordPool.length === 0 || phase === 'displaying' || phase === 'idle') return null;
+  if (phase === 'displaying') return null;
+  if (wordPool.length === 0) return null;
 
   const getColors = (v: 'aqua' | 'cyan' | 'teal') => {
     switch (v) {

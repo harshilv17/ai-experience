@@ -79,11 +79,12 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: true, result });
       }
       case 'conference_start':
-        // Client drives the audio capture; just acknowledge
+        orchestrator.conferenceStart();
         console.log('[Control] Conference mode started');
         break;
       case 'conference_stop': {
         const type = outputType === 'video' ? 'video' : 'image';
+        orchestrator.conferenceEnd();
         // Fire-and-forget: let it run without holding the HTTP response
         orchestrator.generateConferenceResult(type).catch((err) =>
           console.error('[Control] Conference generate error:', err)

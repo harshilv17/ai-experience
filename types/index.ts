@@ -24,6 +24,7 @@ export type SystemEventType =
   | 'cycle_skipped'
   | 'api_error'
   | 'control'
+  | 'pipeline_phase'
   | 'conference_transcript_chunk'
   | 'conference_generating'
   | 'conference_result';
