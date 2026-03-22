@@ -240,10 +240,10 @@ export default function ProjectionDisplay() {
             <div className="w-1.5 h-1.5 rounded-full bg-sky-500/40 breathing-dot" />
           )}
           <p
-            className="text-[clamp(0.7rem,1.4vw,0.95rem)] tracking-[0.2em] select-none identity-subtitle-breathe"
+            className="text-[clamp(1rem,1.9vw,1.35rem)] tracking-[0.2em] select-none identity-subtitle-breathe"
             style={{
-              color: 'rgba(56,189,248,0.45)',
-              textShadow: '0 0 15px rgba(56,189,248,0.2)',
+              color: 'rgba(56,189,248,0.7)',
+              textShadow: '0 0 20px rgba(56,189,248,0.35)',
               fontFamily: "'Inter', 'Segoe UI', system-ui, sans-serif",
               fontWeight: 300,
             }}

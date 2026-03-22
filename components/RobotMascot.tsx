@@ -123,7 +123,7 @@ export default memo(function RobotMascot({ phase, consecutiveSameEmotion }: Prop
   if (state === 'hidden') return null;
 
   return (
-    <div className="fixed inset-0 z-[5] flex items-center justify-center pointer-events-none">
+    <div className="fixed inset-0 z-[5] flex items-center justify-center pointer-events-none" style={{ paddingTop: '8vh' }}>
 
       {/* ─── BREATHING GLOW AURA (enhanced — reacts to listening) ── */}
       <div
