@@ -19,6 +19,7 @@ import { sseBroker } from './sse-broker';
 import { transcriptionService } from './transcription';
 import { emotionAnalyzer } from './emotion-analyzer';
 import { imageGenerator } from './image-generator';
+import { videoGenerator } from './video-generator';
 import { fallbackManager } from './fallback-manager';
 
 class ChunkOrchestrator {
@@ -34,6 +35,7 @@ class ChunkOrchestrator {
     whisper: 'unknown',
     gpt4o: 'unknown',
     dalle3: 'unknown',
+    sora: 'unknown',
   };
 
   // V2: Chunk queue (max depth 1)
@@ -475,39 +477,90 @@ class ChunkOrchestrator {
       });
 
       if (outputType === 'video') {
-        // Video generation is stubbed — generate image first, then broadcast
-        // When a real video API is wired up, replace this block.
-        console.log('[Orchestrator] Video generation stub — generating still image instead');
-      }
+        // ─── SORA VIDEO GENERATION ─────────────────────────────────
+        try {
+          console.log('[Orchestrator] Starting Sora video generation...');
+          const videoResult = await videoGenerator.generate(
+            emotionResult,
+            fullTranscript,
+            chunkId
+          );
+          this.apiStatus.sora = 'ok';
 
-      // Generate image (used for both image and video stub)
-      const imageResult = await imageGenerator.generate(emotionResult, fallbackManager, fullTranscript);
+          // Broadcast video_ready so the projection display shows it
+          this.broadcastEvent('video_ready', {
+            servedPath: videoResult.servedPath,
+            emotion: emotionResult.emotion,
+            chunkId,
+            durationSeconds: videoResult.durationSeconds,
+          });
 
-      if (!imageResult.isFallback) {
-        fallbackManager.addToPool(emotionResult.emotion, imageResult.localPath);
-      }
+          // Also broadcast conference_result
+          this.broadcastEvent('conference_result', {
+            servedPath: videoResult.servedPath,
+            outputType: 'video',
+            emotion: emotionResult.emotion,
+            score: emotionResult.score,
+            fullTranscript,
+          });
 
-      // Only broadcast if we actually have an image to show
-      if (imageResult.servedPath) {
-        this.broadcastEvent('conference_result', {
-          servedPath: imageResult.servedPath,
-          outputType,
-          emotion: emotionResult.emotion,
-          score: emotionResult.score,
-          fullTranscript,
-        });
+          console.log(`[Orchestrator] Conference video result: ${videoResult.servedPath} (${videoResult.latencyMs}ms)`);
+        } catch (videoError: unknown) {
+          this.apiStatus.sora = 'error';
+          const message = videoError instanceof Error ? videoError.message : String(videoError);
+          console.error(`[Orchestrator] Sora video generation failed:`, message);
+          this.broadcastEvent('api_error', { api: 'sora', error: message });
 
-        // Also broadcast image_ready so the projection display shows it
-        this.broadcastEvent('image_ready', {
-          servedPath: imageResult.servedPath,
-          emotion: imageResult.emotion,
-          isFallback: imageResult.isFallback,
-          chunkId,
-        });
-
-        console.log(`[Orchestrator] Conference result: ${imageResult.servedPath}`);
+          // Fallback: generate a still image instead
+          console.log('[Orchestrator] Falling back to image generation...');
+          const imageResult = await imageGenerator.generate(emotionResult, fallbackManager, fullTranscript);
+          if (!imageResult.isFallback) {
+            fallbackManager.addToPool(emotionResult.emotion, imageResult.localPath);
+          }
+          if (imageResult.servedPath) {
+            this.broadcastEvent('image_ready', {
+              servedPath: imageResult.servedPath,
+              emotion: imageResult.emotion,
+              isFallback: imageResult.isFallback,
+              chunkId,
+            });
+            this.broadcastEvent('conference_result', {
+              servedPath: imageResult.servedPath,
+              outputType: 'image',
+              emotion: emotionResult.emotion,
+              score: emotionResult.score,
+              fullTranscript,
+            });
+          }
+        }
       } else {
-        console.warn('[Orchestrator] Conference result: no image generated (fallback pool empty)');
+        // ─── IMAGE GENERATION (existing) ────────────────────────────
+        const imageResult = await imageGenerator.generate(emotionResult, fallbackManager, fullTranscript);
+
+        if (!imageResult.isFallback) {
+          fallbackManager.addToPool(emotionResult.emotion, imageResult.localPath);
+        }
+
+        if (imageResult.servedPath) {
+          this.broadcastEvent('conference_result', {
+            servedPath: imageResult.servedPath,
+            outputType: 'image',
+            emotion: emotionResult.emotion,
+            score: emotionResult.score,
+            fullTranscript,
+          });
+
+          this.broadcastEvent('image_ready', {
+            servedPath: imageResult.servedPath,
+            emotion: imageResult.emotion,
+            isFallback: imageResult.isFallback,
+            chunkId,
+          });
+
+          console.log(`[Orchestrator] Conference result: ${imageResult.servedPath}`);
+        } else {
+          console.warn('[Orchestrator] Conference result: no image generated (fallback pool empty)');
+        }
       }
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);

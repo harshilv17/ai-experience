@@ -18,6 +18,8 @@ export type SystemEventType =
   | 'transcript_ready'
   | 'emotion_ready'
   | 'image_ready'
+  | 'video_ready'
+  | 'video_progress'
   | 'prompt_ready'
   | 'poetic_moment'
   | 'cycle_complete'
@@ -79,6 +81,16 @@ export interface ImageResult {
   latencyMs: number;
 }
 
+export interface VideoResult {
+  localPath: string;              // /tmp/ai-exp-cache/vid_<uuid>.mp4
+  servedPath: string;             // /api/video/<filename>
+  prompt: string;
+  emotion: EmotionClass;
+  chunkId: string;
+  latencyMs: number;
+  durationSeconds: number;
+}
+
 export interface CycleResult {
   chunkId: string;
   status: CycleStatus;
@@ -121,6 +133,20 @@ export interface ImageReadyEvent {
   servedPath: string;
   emotion: EmotionClass;
   isFallback: boolean;
+  chunkId: string;
+}
+
+export interface VideoReadyEvent {
+  servedPath: string;
+  emotion: EmotionClass;
+  chunkId: string;
+  durationSeconds: number;
+}
+
+export interface VideoProgressEvent {
+  videoId: string;
+  status: string;
+  progress: number;
   chunkId: string;
 }
 
@@ -171,6 +197,7 @@ export type ApiStatusMap = {
   whisper: ApiStatus;
   gpt4o: ApiStatus;
   dalle3: ApiStatus;
+  sora: ApiStatus;
 };
 
 export type ApiStatus = 'ok' | 'error' | 'rate_limited' | 'unknown';
@@ -191,6 +218,8 @@ export interface AppState {
 
   // Current display
   currentImagePath: string | null;
+  currentVideoPath: string | null;
+  videoProgress: number | null;
   currentEmotion: EmotionClass | null;
   currentScore: number | null;
   currentKeywords: string[];
@@ -242,6 +271,8 @@ export interface AppState {
   setLiveMode: (live: boolean) => void;
   setPipelinePhase: (phase: PipelinePhase) => void;
   setCurrentImage: (path: string, emotion: EmotionClass, isFallback: boolean) => void;
+  setCurrentVideo: (path: string, emotion: EmotionClass, durationSeconds: number) => void;
+  setVideoProgress: (progress: number | null) => void;
   setCurrentEmotion: (emotion: EmotionClass, score: number, keywords: string[]) => void;
   setTranscript: (text: string, words: string[]) => void;
   updateStats: (result: CycleResult) => void;

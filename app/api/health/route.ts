@@ -10,6 +10,7 @@ export async function GET() {
     whisper: 'unknown',
     gpt4o: 'unknown',
     dalle3: 'unknown',
+    sora: 'unknown',
     timestamp: String(Date.now()),
   };
 
@@ -19,6 +20,7 @@ export async function GET() {
     results.whisper = 'no_api_key';
     results.gpt4o = 'no_api_key';
     results.dalle3 = 'no_api_key';
+    results.sora = 'no_api_key';
     return NextResponse.json(results);
   }
 
@@ -54,6 +56,15 @@ export async function GET() {
   } catch (error: unknown) {
     results.dalle3 = 'error';
     console.error('[Health] DALL-E check failed:', error instanceof Error ? error.message : error);
+  }
+
+  // Test Sora — verify via model retrieval
+  try {
+    await client.models.retrieve('sora-2');
+    results.sora = 'ok';
+  } catch (error: unknown) {
+    results.sora = 'error';
+    console.error('[Health] Sora check failed:', error instanceof Error ? error.message : error);
   }
 
   return NextResponse.json(results);

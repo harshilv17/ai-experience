@@ -116,6 +116,7 @@ export default function ControlPanel() {
   const isConferenceListening = useAppStore((s) => s.isConferenceListening);
   const conferenceIsGenerating = useAppStore((s) => s.conferenceIsGenerating);
   const conferenceTranscriptBuffer = useAppStore((s) => s.conferenceTranscriptBuffer);
+  const videoProgress = useAppStore((s) => s.videoProgress);
   const setCaptureMode = useAppStore((s) => s.setCaptureMode);
   const setGenerationOutputType = useAppStore((s) => s.setGenerationOutputType);
   const setConferenceListening = useAppStore((s) => s.setConferenceListening);
@@ -231,13 +232,13 @@ export default function ControlPanel() {
             API Status
           </h2>
           <div className="space-y-2">
-            {(['whisper', 'gpt4o', 'dalle3'] as const).map((api) => {
+            {(['whisper', 'gpt4o', 'dalle3', 'sora'] as const).map((api) => {
               const status = healthResults
                 ? healthResults[api] || 'unknown'
                 : stats.apiStatus[api];
               return (
                 <div key={api} className="flex items-center justify-between">
-                  <span className="text-sm text-gray-300">{api === 'gpt4o' ? 'GPT-4o' : api === 'dalle3' ? 'DALL-E 3' : 'Whisper'}</span>
+                  <span className="text-sm text-gray-300">{api === 'gpt4o' ? 'GPT-4o' : api === 'dalle3' ? 'DALL-E 3' : api === 'sora' ? 'Sora Video' : 'Whisper'}</span>
                   <span className={`text-sm font-mono ${STATUS_COLORS[status] || 'text-gray-500'}`}>
                     {STATUS_DOTS[status] || '○'} {status.toUpperCase()}
                   </span>
@@ -325,6 +326,9 @@ export default function ControlPanel() {
               <div className="flex items-center gap-2 text-violet-300 text-sm bg-violet-900/30 px-3 py-2 rounded-lg">
                 <span className="animate-spin">⚙</span>
                 Generating {generationOutputType} from full session transcript…
+                {generationOutputType === 'video' && videoProgress != null && (
+                  <span className="ml-auto font-mono text-violet-200">{videoProgress}%</span>
+                )}
               </div>
             )}
 

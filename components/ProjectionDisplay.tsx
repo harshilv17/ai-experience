@@ -20,6 +20,7 @@ import AudioCues from './AudioCues';
 
 export default function ProjectionDisplay() {
   const currentImagePath = useAppStore((s) => s.currentImagePath);
+  const currentVideoPath = useAppStore((s) => s.currentVideoPath);
   const pipelinePhase = useAppStore((s) => s.pipelinePhase);
   const floatingKeywords = useAppStore((s) => s.floatingKeywords);
   const consecutiveSameEmotion = useAppStore((s) => s.consecutiveSameEmotion);
@@ -28,6 +29,7 @@ export default function ProjectionDisplay() {
 
   const layerARef = useRef<HTMLImageElement>(null);
   const layerBRef = useRef<HTMLImageElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const activeLayerRef = useRef<'A' | 'B'>('A');
   const prevImageRef = useRef<string | null>(null);
   const prevPhaseRef = useRef<string>(pipelinePhase);
@@ -94,7 +96,8 @@ export default function ProjectionDisplay() {
     }
   }, [currentImagePath, fadeOutImages]);
 
-  const showImage = (pipelinePhase === 'revealing' || pipelinePhase === 'displaying') && !!currentImagePath;
+  const showImage = (pipelinePhase === 'revealing' || pipelinePhase === 'displaying') && !!currentImagePath && !currentVideoPath;
+  const showVideo = (pipelinePhase === 'revealing' || pipelinePhase === 'displaying') && !!currentVideoPath;
   const isIdle = pipelinePhase === 'idle';
   const isProcessing = pipelinePhase === 'processing' || pipelinePhase === 'listening';
 
@@ -299,6 +302,25 @@ export default function ProjectionDisplay() {
           zIndex: showImage ? 7 : 0,
         }}
       />
+
+      {/* ─── VIDEO LAYER ───────────────────────────────────────── */}
+      {currentVideoPath && (
+        <video
+          ref={videoRef}
+          src={currentVideoPath}
+          autoPlay
+          loop
+          muted={false}
+          playsInline
+          className="fixed inset-0 w-full h-full object-cover"
+          style={{
+            opacity: showVideo ? 1 : 0,
+            transition: 'opacity 1500ms ease-in-out',
+            zIndex: showVideo ? 8 : 0,
+          }}
+          onError={(e) => console.error('[ProjectionDisplay] Video playback error:', e)}
+        />
+      )}
 
       {/* ─── REVEAL MIST OVERLAY (during transition) ──────────── */}
       <div

@@ -17,7 +17,7 @@ export const createStatsSlice: StateCreator<AppState, [], [], StatsSlice> = (set
     lastCycleLatencyMs: 0,
     lastEmotion: null,
     lastScore: null,
-    apiStatus: { whisper: 'unknown', gpt4o: 'unknown', dalle3: 'unknown' },
+    apiStatus: { whisper: 'unknown', gpt4o: 'unknown', dalle3: 'unknown', sora: 'unknown' },
   },
 
   updateStats: (result) => {

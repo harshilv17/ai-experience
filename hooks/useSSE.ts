@@ -10,6 +10,8 @@ import type {
   TranscriptReadyEvent,
   EmotionReadyEvent,
   ImageReadyEvent,
+  VideoReadyEvent,
+  VideoProgressEvent,
   CycleCompleteEvent,
   PromptReadyEvent,
   PoeticMomentEvent,
@@ -26,6 +28,8 @@ export function useSSE() {
   const setTranscript = useAppStore((s) => s.setTranscript);
   const setCurrentEmotion = useAppStore((s) => s.setCurrentEmotion);
   const setCurrentImage = useAppStore((s) => s.setCurrentImage);
+  const setCurrentVideo = useAppStore((s) => s.setCurrentVideo);
+  const setVideoProgress = useAppStore((s) => s.setVideoProgress);
   const updateStats = useAppStore((s) => s.updateStats);
   const addCycleToHistory = useAppStore((s) => s.addCycleToHistory);
   const setApiStatus = useAppStore((s) => s.setApiStatus);
@@ -169,9 +173,10 @@ export function useSSE() {
               if (
                 errorData.api === 'whisper' ||
                 errorData.api === 'gpt4o' ||
-                errorData.api === 'dalle3'
+                errorData.api === 'dalle3' ||
+                errorData.api === 'sora'
               ) {
-                setApiStatus(errorData.api as 'whisper' | 'gpt4o' | 'dalle3', 'error');
+                setApiStatus(errorData.api as 'whisper' | 'gpt4o' | 'dalle3' | 'sora', 'error');
               }
               // Reset to idle on error so we don't get stuck
               setPipelinePhase('idle');
@@ -202,8 +207,26 @@ export function useSSE() {
             case 'conference_result': {
               const data = sysEvent.data as ConferenceResultEvent;
               setConferenceIsGenerating(false);
-              // The image_ready event will also fire and update the projection
+              // The image_ready or video_ready event will also fire and update the projection
               console.log(`[SSE] Conference result: ${data.outputType} → ${data.servedPath}`);
+              break;
+            }
+            case 'video_ready': {
+              const data = sysEvent.data as VideoReadyEvent;
+              setCurrentVideo(data.servedPath, data.emotion, data.durationSeconds);
+              // Move pending prompt to the liveImagePrompt
+              const pendingPromptV = useAppStore.getState().pendingImagePrompt;
+              if (pendingPromptV) {
+                setLiveImagePrompt(pendingPromptV);
+                setPendingImagePrompt('');
+              }
+              setTimeout(() => setLiveEmotionJSON(null), 3000);
+              break;
+            }
+            case 'video_progress': {
+              const data = sysEvent.data as VideoProgressEvent;
+              setVideoProgress(data.progress);
+              console.log(`[SSE] Video progress: ${data.status} ${data.progress}%`);
               break;
             }
             default:

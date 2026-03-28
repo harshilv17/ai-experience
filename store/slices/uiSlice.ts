@@ -5,6 +5,8 @@ import { IMAGE_SYSTEM_CONTEXT } from '@/lib/prompt-templates';
 export interface UiSlice {
   pipelinePhase: PipelinePhase;
   currentImagePath: string | null;
+  currentVideoPath: string | null;
+  videoProgress: number | null;
   currentEmotion: EmotionClass | null;
   currentScore: number | null;
   currentKeywords: string[];
@@ -33,6 +35,8 @@ export interface UiSlice {
 
   setPipelinePhase: (phase: PipelinePhase) => void;
   setCurrentImage: (path: string, emotion: EmotionClass, isFallback: boolean) => void;
+  setCurrentVideo: (path: string, emotion: EmotionClass, durationSeconds: number) => void;
+  setVideoProgress: (progress: number | null) => void;
   setCurrentEmotion: (emotion: EmotionClass, score: number, keywords: string[]) => void;
   setTranscript: (text: string, words: string[]) => void;
   setShowOverlay: (show: boolean) => void;
@@ -144,6 +148,8 @@ function mergeKeywords(gptKeywords: string[], transcriptWords: string[], maxTota
 export const createUiSlice: StateCreator<AppState, [], [], UiSlice> = (set, get) => ({
   pipelinePhase: 'idle',
   currentImagePath: null,
+  currentVideoPath: null,
+  videoProgress: null,
   currentEmotion: null,
   currentScore: null,
   currentKeywords: [],
@@ -199,12 +205,53 @@ export const createUiSlice: StateCreator<AppState, [], [], UiSlice> = (set, get)
       set({
         pipelinePhase: 'idle',
         currentImagePath: null,
+        currentVideoPath: null,
         floatingKeywords: [],
         showOverlay: false,
         displayStartedAt: null,
       });
     }, IMAGE_DISPLAY_DURATION_MS);
   },
+
+  setCurrentVideo: (path, emotion, durationSeconds) => {
+    if (displayTimer) clearTimeout(displayTimer);
+    if (revealTimer) clearTimeout(revealTimer);
+    if (overlayTimer) clearTimeout(overlayTimer);
+
+    set({
+      currentVideoPath: path,
+      currentImagePath: null,  // clear any image when video plays
+      pipelinePhase: 'revealing',
+      showOverlay: true,
+      floatingKeywords: [],
+      liveEmotionJSON: null,
+      displayStartedAt: Date.now(),
+      videoProgress: null,  // clear progress indicator
+    });
+
+    revealTimer = setTimeout(() => {
+      set({ pipelinePhase: 'displaying' });
+    }, 2000);
+
+    overlayTimer = setTimeout(() => {
+      set({ showOverlay: false });
+    }, OVERLAY_DURATION_MS);
+
+    // Hold video display for video duration + buffer
+    const holdMs = Math.max((durationSeconds + 5) * 1000, IMAGE_DISPLAY_DURATION_MS);
+    displayTimer = setTimeout(() => {
+      set({
+        pipelinePhase: 'idle',
+        currentVideoPath: null,
+        currentImagePath: null,
+        floatingKeywords: [],
+        showOverlay: false,
+        displayStartedAt: null,
+      });
+    }, holdMs);
+  },
+
+  setVideoProgress: (progress) => set({ videoProgress: progress }),
 
   setCurrentEmotion: (emotion, score, keywords) => {
     // Merge GPT keywords with words extracted from the live transcript
