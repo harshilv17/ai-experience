@@ -57,7 +57,7 @@ class VideoGenerator {
     console.log(`[VideoGenerator] Submitting job to Sora API (${this.model}, ${this.defaultDuration}s, ${this.defaultSize})`);
 
     // ─── STEP 1: Submit generation job ──────────────────────────────
-    const submitRes = await fetch(`${this.baseUrl}/videos/generations`, {
+    const submitRes = await fetch(`${this.baseUrl}/videos`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${this.apiKey}`,

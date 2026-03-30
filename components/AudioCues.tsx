@@ -6,9 +6,11 @@ import { useAppStore } from '@/store/appStore';
 
 export default memo(function AudioCues() {
   const phase = useAppStore((s) => s.pipelinePhase);
+  const currentVideoPath = useAppStore((s) => s.currentVideoPath);
   const prevPhaseRef = useRef(phase);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const ambientAudioRef = useRef<HTMLAudioElement | null>(null);
+  const displayAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const getAudioCtx = useCallback(() => {
     if (!audioCtxRef.current) {
@@ -104,12 +106,25 @@ export default memo(function AudioCues() {
     }
   }, [getAudioCtx]);
 
-  // Setup ambient background audio
+  // Setup ambient background audio (plays during listening/processing)
   useEffect(() => {
     const audio = new Audio('/ambient.mp3');
     audio.loop = true;
     audio.volume = 0.25; // Warm, subtle background level
     ambientAudioRef.current = audio;
+
+    return () => {
+      audio.pause();
+      audio.src = '';
+    };
+  }, []);
+
+  // Setup display audio (plays during image display — NOT during video)
+  useEffect(() => {
+    const audio = new Audio('/displayaudio.mp3');
+    audio.loop = true;
+    audio.volume = 0.35;
+    displayAudioRef.current = audio;
 
     return () => {
       audio.pause();
@@ -138,6 +153,33 @@ export default memo(function AudioCues() {
       }
     }
   }, [phase]);
+
+  // Control display audio based on pipeline phase and content type
+  // - Plays during revealing/displaying phases ONLY when an image is shown (no video)
+  // - For video, the <video> element's own audio plays instead
+  useEffect(() => {
+    const audio = displayAudioRef.current;
+    if (!audio) return;
+
+    const isDisplayPhase = phase === 'revealing' || phase === 'displaying';
+    const isVideoPlaying = !!currentVideoPath;
+
+    // Play displayaudio.mp3 only for IMAGE display (not video — video has its own audio)
+    const shouldPlay = isDisplayPhase && !isVideoPlaying;
+
+    if (shouldPlay) {
+      if (audio.paused) {
+        audio.play().catch(err => {
+          console.warn('[AudioCues] Display audio autoplay blocked by browser policy:', err);
+        });
+      }
+    } else {
+      if (!audio.paused) {
+        audio.pause();
+        audio.currentTime = 0; // reset for next play
+      }
+    }
+  }, [phase, currentVideoPath]);
 
   useEffect(() => {
     const prev = prevPhaseRef.current;
