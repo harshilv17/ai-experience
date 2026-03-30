@@ -394,10 +394,10 @@ class ChunkOrchestrator {
     console.log('[Orchestrator] Conference started');
   }
 
-  /** Signal clients that conference listening has ended */
+  /** Signal clients that conference listening has ended — stay in processing until result */
   conferenceEnd(): void {
-    this.broadcastEvent('pipeline_phase', { phase: 'idle' });
-    console.log('[Orchestrator] Conference ended');
+    this.broadcastEvent('pipeline_phase', { phase: 'processing' });
+    console.log('[Orchestrator] Conference ended — entering processing phase');
   }
 
   /** Transcribe one audio chunk in conference mode — no emotion/image pipeline */

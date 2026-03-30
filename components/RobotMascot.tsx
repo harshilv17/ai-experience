@@ -14,6 +14,9 @@ export default memo(function RobotMascot({ phase, consecutiveSameEmotion }: Prop
   const floatingKeywords = useAppStore((s) => s.floatingKeywords);
   const sessionKeywords = useAppStore((s) => s.sessionKeywords);
   const liveTranscript = useAppStore((s) => s.liveTranscript);
+  const captureMode = useAppStore((s) => s.captureMode);
+  const currentImagePath = useAppStore((s) => s.currentImagePath);
+  const currentVideoPath = useAppStore((s) => s.currentVideoPath);
 
   const [eyeAnimIndex, setEyeAnimIndex] = useState(0);
   const [visibleWordCount, setVisibleWordCount] = useState(0);
@@ -22,7 +25,18 @@ export default memo(function RobotMascot({ phase, consecutiveSameEmotion }: Prop
   const [headTiltDeg, setHeadTiltDeg] = useState(0);
   const headTiltRef = useRef(0);
 
+  // In conference mode, keep robot hidden once any image/video has been shown or session is complete
+  const conferenceCompleted = useAppStore((s) => s.conferenceCompleted);
+  const conferenceIsGenerating = useAppStore((s) => s.conferenceIsGenerating);
+  const conferenceHideRobot = captureMode === 'conference' && (
+    !!currentImagePath || !!currentVideoPath || conferenceCompleted || conferenceIsGenerating
+  );
+
   const state = useMemo(() => {
+    // In conference mode: once media is shown / generating / completed, robot NEVER comes back
+    if (conferenceHideRobot) {
+      return 'hidden';
+    }
     switch (phase) {
       case 'processing':
       case 'showing_prompt':
@@ -36,7 +50,7 @@ export default memo(function RobotMascot({ phase, consecutiveSameEmotion }: Prop
       default:
         return 'idle';
     }
-  }, [phase]);
+  }, [phase, conferenceHideRobot]);
 
   const transcriptWords = useMemo(() => {
     if (!liveTranscript) return [];

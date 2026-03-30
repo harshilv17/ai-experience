@@ -115,6 +115,7 @@ export default function ControlPanel() {
   const generationOutputType = useAppStore((s) => s.generationOutputType);
   const isConferenceListening = useAppStore((s) => s.isConferenceListening);
   const conferenceIsGenerating = useAppStore((s) => s.conferenceIsGenerating);
+  const conferenceCompleted = useAppStore((s) => s.conferenceCompleted);
   const conferenceTranscriptBuffer = useAppStore((s) => s.conferenceTranscriptBuffer);
   const videoProgress = useAppStore((s) => s.videoProgress);
   const setCaptureMode = useAppStore((s) => s.setCaptureMode);
@@ -169,9 +170,11 @@ export default function ControlPanel() {
   }, [sendCommand]);
 
   const handleConferenceStart = useCallback(async () => {
+    // Clear previous conference data before starting a new cycle
+    clearConferenceTranscript();
     setConferenceListening(true);
     await sendCommand('conference_start');
-  }, [sendCommand, setConferenceListening]);
+  }, [sendCommand, setConferenceListening, clearConferenceTranscript]);
 
   const handleConferenceStop = useCallback(async () => {
     setConferenceListening(false);
@@ -300,7 +303,7 @@ export default function ControlPanel() {
         {/* ─── CONFERENCE MODE CONTROLS ─────────────────────────────── */}
         {captureMode === 'conference' && (
           <div className="mb-4 p-4 bg-violet-900/20 rounded-xl border border-violet-700/40 space-y-3">
-            {/* Output type selector */}
+            {/* Output type selector — disabled once session is running or complete */}
             <div>
               <p className="text-xs text-gray-400 uppercase tracking-wider font-semibold mb-2">Generate Output</p>
               <div className="flex gap-2">
@@ -308,11 +311,13 @@ export default function ControlPanel() {
                   <button
                     key={type}
                     onClick={() => setGenerationOutputType(type)}
+                    disabled={isConferenceListening || conferenceIsGenerating || conferenceCompleted}
                     className={`
                       flex-1 py-2 px-4 rounded-lg text-sm font-semibold transition-all
                       ${generationOutputType === type
                         ? 'bg-violet-600 text-white shadow-md shadow-violet-600/30'
                         : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}
+                      disabled:opacity-40
                     `}
                   >
                     {type === 'image' ? '🖼 Image' : '🎬 Video'}
@@ -322,6 +327,13 @@ export default function ControlPanel() {
             </div>
 
             {/* Conference Status Indicator */}
+            {conferenceCompleted && !conferenceIsGenerating && (
+              <div className="flex items-center gap-2 text-emerald-300 text-sm bg-emerald-900/20 px-3 py-2 rounded-lg border border-emerald-700/30">
+                <span>✅</span>
+                Session complete — image is displayed on projection
+              </div>
+            )}
+
             {conferenceIsGenerating && (
               <div className="flex items-center gap-2 text-violet-300 text-sm bg-violet-900/30 px-3 py-2 rounded-lg">
                 <span className="animate-spin">⚙</span>
@@ -340,22 +352,34 @@ export default function ControlPanel() {
             )}
 
             {/* Start / Stop buttons */}
-            <div className="grid grid-cols-2 gap-2">
+            {!conferenceCompleted ? (
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={handleConferenceStart}
+                  disabled={isLoading || isConferenceListening || conferenceIsGenerating}
+                  className="py-3 rounded-xl text-sm font-bold tracking-wider bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/30 transition-all disabled:opacity-40"
+                >
+                  ▶ Start Listening
+                </button>
+                <button
+                  onClick={handleConferenceStop}
+                  disabled={isLoading || !isConferenceListening || conferenceIsGenerating}
+                  className="py-3 rounded-xl text-sm font-bold tracking-wider bg-red-600 hover:bg-red-500 text-white shadow-lg shadow-red-600/30 transition-all disabled:opacity-40"
+                >
+                  ⏹ Stop &amp; Generate
+                </button>
+              </div>
+            ) : (
               <button
-                onClick={handleConferenceStart}
-                disabled={isLoading || isConferenceListening || conferenceIsGenerating}
-                className="py-3 rounded-xl text-sm font-bold tracking-wider bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/30 transition-all disabled:opacity-40"
+                onClick={() => {
+                  clearConferenceTranscript();
+                  clearWordPool();
+                }}
+                className="w-full py-3 rounded-xl text-sm font-bold tracking-wider bg-gray-700 hover:bg-gray-600 text-gray-300 transition-all"
               >
-                ▶ Start Listening
+                🔄 Reset Conference Session
               </button>
-              <button
-                onClick={handleConferenceStop}
-                disabled={isLoading || !isConferenceListening || conferenceIsGenerating}
-                className="py-3 rounded-xl text-sm font-bold tracking-wider bg-red-600 hover:bg-red-500 text-white shadow-lg shadow-red-600/30 transition-all disabled:opacity-40"
-              >
-                ⏹ Stop &amp; Generate
-              </button>
-            </div>
+            )}
           </div>
         )}
 

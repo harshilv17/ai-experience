@@ -29,6 +29,7 @@ export interface UiSlice {
   isConferenceListening: boolean;
   conferenceTranscriptBuffer: string;
   conferenceIsGenerating: boolean;
+  conferenceCompleted: boolean;
 
   // Dynamic word pool (rolling, all unique words seen)
   allTranscriptWords: string[];
@@ -56,6 +57,7 @@ export interface UiSlice {
   appendConferenceTranscript: (text: string) => void;
   clearConferenceTranscript: () => void;
   setConferenceIsGenerating: (generating: boolean) => void;
+  setConferenceCompleted: (completed: boolean) => void;
 
   // Dynamic word pool
   addToWordPool: (words: string[]) => void;
@@ -173,6 +175,7 @@ export const createUiSlice: StateCreator<AppState, [], [], UiSlice> = (set, get)
   isConferenceListening: false,
   conferenceTranscriptBuffer: '',
   conferenceIsGenerating: false,
+  conferenceCompleted: false,
 
   // Dynamic word pool
   allTranscriptWords: [],
@@ -183,6 +186,8 @@ export const createUiSlice: StateCreator<AppState, [], [], UiSlice> = (set, get)
     if (displayTimer) clearTimeout(displayTimer);
     if (revealTimer) clearTimeout(revealTimer);
     if (overlayTimer) clearTimeout(overlayTimer);
+
+    const isConference = get().captureMode === 'conference';
 
     set({
       currentImagePath: path,
@@ -201,22 +206,27 @@ export const createUiSlice: StateCreator<AppState, [], [], UiSlice> = (set, get)
       set({ showOverlay: false });
     }, OVERLAY_DURATION_MS);
 
-    displayTimer = setTimeout(() => {
-      set({
-        pipelinePhase: 'idle',
-        currentImagePath: null,
-        currentVideoPath: null,
-        floatingKeywords: [],
-        showOverlay: false,
-        displayStartedAt: null,
-      });
-    }, IMAGE_DISPLAY_DURATION_MS);
+    // In conference mode, keep the image displayed indefinitely (no auto-return to idle/robot)
+    if (!isConference) {
+      displayTimer = setTimeout(() => {
+        set({
+          pipelinePhase: 'idle',
+          currentImagePath: null,
+          currentVideoPath: null,
+          floatingKeywords: [],
+          showOverlay: false,
+          displayStartedAt: null,
+        });
+      }, IMAGE_DISPLAY_DURATION_MS);
+    }
   },
 
   setCurrentVideo: (path, emotion, durationSeconds) => {
     if (displayTimer) clearTimeout(displayTimer);
     if (revealTimer) clearTimeout(revealTimer);
     if (overlayTimer) clearTimeout(overlayTimer);
+
+    const isConference = get().captureMode === 'conference';
 
     set({
       currentVideoPath: path,
@@ -237,18 +247,21 @@ export const createUiSlice: StateCreator<AppState, [], [], UiSlice> = (set, get)
       set({ showOverlay: false });
     }, OVERLAY_DURATION_MS);
 
-    // Hold video display for video duration + buffer
-    const holdMs = Math.max((durationSeconds + 5) * 1000, IMAGE_DISPLAY_DURATION_MS);
-    displayTimer = setTimeout(() => {
-      set({
-        pipelinePhase: 'idle',
-        currentVideoPath: null,
-        currentImagePath: null,
-        floatingKeywords: [],
-        showOverlay: false,
-        displayStartedAt: null,
-      });
-    }, holdMs);
+    // In conference mode, keep the video displayed indefinitely
+    if (!isConference) {
+      // Hold video display for video duration + buffer
+      const holdMs = Math.max((durationSeconds + 5) * 1000, IMAGE_DISPLAY_DURATION_MS);
+      displayTimer = setTimeout(() => {
+        set({
+          pipelinePhase: 'idle',
+          currentVideoPath: null,
+          currentImagePath: null,
+          floatingKeywords: [],
+          showOverlay: false,
+          displayStartedAt: null,
+        });
+      }, holdMs);
+    }
   },
 
   setVideoProgress: (progress) => set({ videoProgress: progress }),
@@ -314,7 +327,15 @@ export const createUiSlice: StateCreator<AppState, [], [], UiSlice> = (set, get)
   setCaptureMode: (mode) => set({ captureMode: mode }),
   setGenerationOutputType: (type) => set({ generationOutputType: type }),
   setConferenceListening: (listening) => set({ isConferenceListening: listening }),
-  setConferenceIsGenerating: (generating) => set({ conferenceIsGenerating: generating }),
+  setConferenceIsGenerating: (generating) => {
+    // When generation finishes (true→false), mark conference as completed
+    if (!generating && get().conferenceIsGenerating) {
+      set({ conferenceIsGenerating: false, conferenceCompleted: true });
+    } else {
+      set({ conferenceIsGenerating: generating });
+    }
+  },
+  setConferenceCompleted: (completed) => set({ conferenceCompleted: completed }),
 
   appendConferenceTranscript: (text) => {
     const current = get().conferenceTranscriptBuffer;
@@ -326,7 +347,7 @@ export const createUiSlice: StateCreator<AppState, [], [], UiSlice> = (set, get)
     set({ conferenceTranscriptBuffer: updated, allTranscriptWords: merged });
   },
 
-  clearConferenceTranscript: () => set({ conferenceTranscriptBuffer: '', isConferenceListening: false, conferenceIsGenerating: false }),
+  clearConferenceTranscript: () => set({ conferenceTranscriptBuffer: '', isConferenceListening: false, conferenceIsGenerating: false, conferenceCompleted: false }),
 
   // ── Dynamic word pool actions ─────────────────────────────────────────────
   addToWordPool: (words) => {

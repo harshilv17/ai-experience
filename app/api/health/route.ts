@@ -41,6 +41,7 @@ export async function GET() {
 
   // Test Whisper — just verify the API key works via models list
   // (Don't send actual audio — too expensive for a health check)
+  
   try {
     await client.models.retrieve('whisper-1');
     results.whisper = 'ok';

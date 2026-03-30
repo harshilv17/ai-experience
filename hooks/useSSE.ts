@@ -184,7 +184,8 @@ export function useSSE() {
             }
             case 'pipeline_phase': {
               const data = sysEvent.data as { phase: string };
-              setPipelinePhase(data.phase as 'idle' | 'listening' | 'processing' | 'showing_prompt' | 'revealing' | 'displaying');
+              const newPhase = data.phase as 'idle' | 'listening' | 'processing' | 'showing_prompt' | 'revealing' | 'displaying';
+              setPipelinePhase(newPhase);
               break;
             }
             case 'conference_transcript_chunk': {

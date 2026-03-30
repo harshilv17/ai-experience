@@ -262,6 +262,7 @@ export interface AppState {
   isConferenceListening: boolean;
   conferenceTranscriptBuffer: string;   // accumulated full transcript
   conferenceIsGenerating: boolean;
+  conferenceCompleted: boolean;
 
   // ─── DYNAMIC WORD POOL ────────────────────────────────────
   allTranscriptWords: string[];         // rolling pool of all unique extracted words
@@ -307,6 +308,7 @@ export interface AppState {
   appendConferenceTranscript: (text: string) => void;
   clearConferenceTranscript: () => void;
   setConferenceIsGenerating: (generating: boolean) => void;
+  setConferenceCompleted: (completed: boolean) => void;
 
   // Dynamic word pool
   addToWordPool: (words: string[]) => void;

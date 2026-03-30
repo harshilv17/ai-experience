@@ -17,6 +17,7 @@ import GodRays from './GodRays';
 import DataStreams from './DataStreams';
 import PulseRings from './PulseRings';
 import AudioCues from './AudioCues';
+import ConferenceTransition from './ConferenceTransition';
 
 export default function ProjectionDisplay() {
   const currentImagePath = useAppStore((s) => s.currentImagePath);
@@ -26,6 +27,10 @@ export default function ProjectionDisplay() {
   const consecutiveSameEmotion = useAppStore((s) => s.consecutiveSameEmotion);
   const currentEmotion = useAppStore((s) => s.currentEmotion);
   const allTranscriptWords = useAppStore((s) => s.allTranscriptWords);
+  const captureMode = useAppStore((s) => s.captureMode);
+  const conferenceIsGenerating = useAppStore((s) => s.conferenceIsGenerating);
+  const conferenceCompleted = useAppStore((s) => s.conferenceCompleted);
+  const isConference = captureMode === 'conference';
 
   const layerARef = useRef<HTMLImageElement>(null);
   const layerBRef = useRef<HTMLImageElement>(null);
@@ -84,22 +89,37 @@ export default function ProjectionDisplay() {
   }, [currentImagePath, crossfadeTo, consecutiveSameEmotion]);
 
   useEffect(() => {
+    // Don't fade out images in conference mode — they should persist
+    if (isConference) {
+      prevPhaseRef.current = pipelinePhase;
+      return;
+    }
     if (pipelinePhase === 'idle' && (prevPhaseRef.current === 'displaying' || prevPhaseRef.current === 'revealing')) {
       fadeOutImages();
     }
     prevPhaseRef.current = pipelinePhase;
-  }, [pipelinePhase, fadeOutImages]);
+  }, [pipelinePhase, fadeOutImages, isConference]);
 
   useEffect(() => {
+    // Don't fade out images in conference mode
+    if (isConference) return;
     if (!currentImagePath && prevImageRef.current) {
       fadeOutImages();
     }
-  }, [currentImagePath, fadeOutImages]);
+  }, [currentImagePath, fadeOutImages, isConference]);
 
-  const showImage = (pipelinePhase === 'revealing' || pipelinePhase === 'displaying') && !!currentImagePath && !currentVideoPath;
-  const showVideo = (pipelinePhase === 'revealing' || pipelinePhase === 'displaying') && !!currentVideoPath;
-  const isIdle = pipelinePhase === 'idle';
-  const isProcessing = pipelinePhase === 'processing' || pipelinePhase === 'listening';
+  // In conference mode: once completed/generating, ALWAYS keep images visible regardless of phase
+  const conferenceKeepImage = isConference && !!currentImagePath && (
+    conferenceCompleted || conferenceIsGenerating || pipelinePhase !== 'idle'
+  );
+  const conferenceKeepVideo = isConference && !!currentVideoPath && (
+    conferenceCompleted || conferenceIsGenerating || pipelinePhase !== 'idle'
+  );
+
+  const showImage = ((pipelinePhase === 'revealing' || pipelinePhase === 'displaying') && !!currentImagePath && !currentVideoPath) || conferenceKeepImage;
+  const showVideo = ((pipelinePhase === 'revealing' || pipelinePhase === 'displaying') && !!currentVideoPath) || conferenceKeepVideo;
+  const isIdle = pipelinePhase === 'idle' && !conferenceKeepImage && !conferenceKeepVideo;
+  const isProcessing = (pipelinePhase === 'processing' || pipelinePhase === 'listening') && !conferenceKeepImage && !conferenceKeepVideo;
 
   const emotionAccent = currentEmotion
     ? ({
@@ -212,7 +232,7 @@ export default function ProjectionDisplay() {
       {/* ─── IDENTITY HEADER — THE BLUE RESONANCE ─────────────── */}
       <div
         className="fixed top-0 left-0 right-0 z-[15] flex flex-col items-center pt-3 pb-2 pointer-events-none transition-opacity duration-1000"
-        style={{ opacity: pipelinePhase === 'displaying' ? 0 : 1 }}
+        style={{ opacity: (pipelinePhase === 'displaying' || showImage || showVideo) ? 0 : 1 }}
       >
         <h1
           className="text-[clamp(1.2rem,2.8vw,2.2rem)] font-bold tracking-[0.25em] uppercase select-none identity-title-glow"
@@ -273,9 +293,12 @@ export default function ProjectionDisplay() {
       <FloatingKeywords
         words={floatingKeywords}
         allWords={allTranscriptWords}
-        gathering={pipelinePhase === 'revealing'}
+        gathering={pipelinePhase === 'revealing' || conferenceIsGenerating}
         phase={pipelinePhase}
       />
+
+      {/* ─── CONFERENCE TRANSITION (swirling water vortex) ────── */}
+      <ConferenceTransition active={conferenceIsGenerating} />
 
       {/* ─── IMAGE LAYER A ────────────────────────────────────── */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -358,7 +381,7 @@ export default function ProjectionDisplay() {
       {/* ─── BOTTOM TAGLINE ─────────────────────────────────── */}
       <div
         className="fixed bottom-6 left-0 right-0 z-[13] flex justify-center pointer-events-none transition-opacity duration-1000"
-        style={{ opacity: pipelinePhase === 'displaying' ? 0 : 0.6 }}
+        style={{ opacity: (pipelinePhase === 'displaying' || showImage || showVideo) ? 0 : 0.6 }}
       >
         <p
           className="text-[clamp(0.8rem,1.5vw,1.05rem)] tracking-[0.22em] select-none"
