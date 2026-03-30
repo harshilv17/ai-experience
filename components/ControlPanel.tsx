@@ -187,7 +187,8 @@ export default function ControlPanel() {
     clearConferenceTranscript();
     clearWordPool();
     setCaptureMode(mode);
-  }, [isConferenceListening, setConferenceListening, clearConferenceTranscript, clearWordPool, setCaptureMode]);
+    sendCommand('set_capture_mode', { mode });
+  }, [isConferenceListening, setConferenceListening, clearConferenceTranscript, clearWordPool, setCaptureMode, sendCommand]);
 
   const stateColors: Record<string, string> = {
     idle: 'text-gray-400',

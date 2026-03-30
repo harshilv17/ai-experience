@@ -19,12 +19,13 @@ const VALID_COMMANDS: ControlCommand[] = [
   'force_generate_with_prompt',
   'conference_start',
   'conference_stop',
+  'set_capture_mode',
 ];
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { cmd, prompt, outputType } = body as { cmd: ControlCommand; prompt?: string; outputType?: 'image' | 'video' };
+    const { cmd, prompt, outputType, mode } = body as { cmd: ControlCommand; prompt?: string; outputType?: 'image' | 'video'; mode?: string };
 
     if (!cmd || !VALID_COMMANDS.includes(cmd)) {
       return NextResponse.json(
@@ -90,6 +91,12 @@ export async function POST(req: Request) {
           console.error('[Control] Conference generate error:', err)
         );
         return NextResponse.json({ ok: true, status: 'generating', outputType: type });
+      }
+      case 'set_capture_mode': {
+        if (mode) {
+           sseBroker.broadcast({ type: 'control', data: { cmd: 'set_capture_mode', mode }, timestamp: Date.now() });
+        }
+        break;
       }
     }
 

@@ -40,7 +40,8 @@ export type ControlCommand =
   | 'force_generate'
   | 'force_generate_with_prompt'
   | 'conference_start'
-  | 'conference_stop';
+  | 'conference_stop'
+  | 'set_capture_mode';
 
 // ─── PIPELINE DTOs ─────────────────────────────────────────────────────────
 

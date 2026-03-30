@@ -45,6 +45,7 @@ export function useSSE() {
   const setPendingImagePrompt = useAppStore((s) => s.setPendingImagePrompt);
 
   // Conference mode actions
+  const setCaptureMode = useAppStore((s) => s.setCaptureMode);
   const appendConferenceTranscript = useAppStore((s) => s.appendConferenceTranscript);
   const setConferenceIsGenerating = useAppStore((s) => s.setConferenceIsGenerating);
   const addToWordPool = useAppStore((s) => s.addToWordPool);
@@ -228,6 +229,14 @@ export function useSSE() {
               const data = sysEvent.data as VideoProgressEvent;
               setVideoProgress(data.progress);
               console.log(`[SSE] Video progress: ${data.status} ${data.progress}%`);
+              break;
+            }
+            case 'control': {
+              const data = sysEvent.data as { cmd: string; mode?: 'auto' | 'conference' };
+              if (data.cmd === 'set_capture_mode' && data.mode) {
+                setCaptureMode(data.mode);
+                console.log(`[SSE] Synced capture mode: ${data.mode}`);
+              }
               break;
             }
             default:
